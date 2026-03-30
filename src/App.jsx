@@ -129,15 +129,6 @@ export default function App() {
               <span>км</span>
             </div>
           </div>
-          <input 
-            type="range" 
-            min="0" 
-            max="500" 
-            step="5"
-            className="range-slider"
-            value={deliveryDistance} 
-            onChange={(e) => setDeliveryDistance(Number(e.target.value))}
-          />
         </div>
 
         <div className="result-box">
