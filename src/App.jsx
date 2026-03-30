@@ -115,9 +115,19 @@ export default function App() {
         </div>
 
         <div className="slider-container">
-          <div className="slider-info">
+          <div className="slider-info" style={{ alignItems: 'center' }}>
             <span>Удаленность объекта (доставка)</span>
-            <span>{deliveryDistance} км</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <input 
+                type="number" 
+                className="input" 
+                style={{ width: '80px', padding: '0.4rem', textAlign: 'center' }}
+                value={deliveryDistance} 
+                onChange={(e) => setDeliveryDistance(Number(e.target.value))}
+                min="0"
+              />
+              <span>км</span>
+            </div>
           </div>
           <input 
             type="range" 
