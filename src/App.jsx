@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import './index.css';
 
 export default function App() {
+  const [productType, setProductType] = useState('window');
   const [profileType, setProfileType] = useState('cold-alu');
   const [width, setWidth] = useState(1500);
   const [height, setHeight] = useState(1500);
@@ -13,7 +14,17 @@ export default function App() {
 
   const calculatePrice = () => {
     // Area in square meters
-    const area = (width * height) / 1000000;
+    let rawArea = (width * height) / 1000000;
+    let area = rawArea;
+    
+    // Minimum area rules for Aluminum profiles
+    if (profileType === 'cold-alu' || profileType === 'warm-alu') {
+      if (productType === 'door' && rawArea < 2) {
+        area = 2; // minimum 2 sq.m. for doors
+      } else if (productType === 'window' && rawArea < 1) {
+        area = 1; // minimum 1 sq.m. for windows
+      }
+    }
     
     // Base pricing mapped from the estimates
     let basePricePerSqM = 0;
@@ -28,9 +39,9 @@ export default function App() {
     
     // Additive options
     let additionalCost = 0;
-    if (needsInstallation) additionalCost += area * 2800;
-    if (needsTinting) additionalCost += area * 2300;
-    additionalCost += deliveryDistance * 75;
+    if (needsInstallation) additionalCost += area * 3600; // Updated installation price
+    if (needsTinting) additionalCost += area * 2310; // Updated tinting price
+    additionalCost += deliveryDistance * 75; // Delivery price per km
     
     const totalMin = (baseCost + additionalCost) * 0.95;
     const totalMax = (baseCost + additionalCost) * 1.05;
@@ -48,6 +59,18 @@ export default function App() {
       <div className="calculator-card">
         <h1 className="title">Комфорт+</h1>
         <p className="subtitle">Экспресс-калькулятор стоимости конструкций</p>
+
+        <div className="form-group">
+          <label className="label">Тип изделия</label>
+          <select 
+            className="select"
+            value={productType} 
+            onChange={(e) => setProductType(e.target.value)}
+          >
+            <option value="window">Окно</option>
+            <option value="door">Дверь / Входная группа</option>
+          </select>
+        </div>
 
         <div className="form-group">
           <label className="label">Тип профильной системы</label>
