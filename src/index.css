@@ -33,14 +33,9 @@ body {
   border-radius: 24px;
   padding: 2.5rem;
   width: 100%;
-  max-width: 600px;
+  max-width: 650px;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.calculator-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.6);
 }
 
 .title {
@@ -103,7 +98,6 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
-  margin-top: 2rem;
 }
 
 .checkbox-label {
@@ -130,6 +124,80 @@ body {
   cursor: pointer;
 }
 
+.item-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1.5rem;
+  border-radius: 16px;
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
+.item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.item-header h3 {
+  font-size: 1.1rem;
+  color: #93c5fd;
+  margin: 0;
+}
+
+.remove-btn {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: bold;
+}
+
+.remove-btn:hover {
+  background: rgba(239, 68, 68, 0.5);
+  color: white;
+}
+
+.add-btn {
+  width: 100%;
+  padding: 1rem;
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px dashed rgba(59, 130, 246, 0.5);
+  color: #93c5fd;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 2rem;
+  transition: all 0.2s;
+}
+
+.add-btn:hover {
+  background: rgba(59, 130, 246, 0.25);
+  border-color: #3b82f6;
+  color: white;
+}
+
+.global-settings {
+  border-top: 1px solid rgba(255,255,255,0.1);
+  padding-top: 2rem;
+  margin-top: 1rem;
+}
+
+.section-title {
+  color: #e2e8f0;
+  font-size: 1.3rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
 .slider-container {
   margin-top: 1.5rem;
 }
@@ -140,11 +208,6 @@ body {
   margin-bottom: 0.5rem;
   font-size: 0.9rem;
   color: #cbd5e1;
-}
-
-.range-slider {
-  width: 100%;
-  accent-color: #3b82f6;
 }
 
 .result-box {
