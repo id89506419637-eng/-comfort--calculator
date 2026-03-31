@@ -262,10 +262,120 @@ body {
 }
 
 @media (max-width: 600px) {
+  body {
+    align-items: flex-start;
+  }
+
+  .app-container {
+    padding: 0.75rem;
+  }
+
+  .calculator-card {
+    padding: 1.25rem;
+    border-radius: 16px;
+  }
+
+  .title {
+    font-size: 1.5rem;
+  }
+
+  .subtitle {
+    font-size: 0.8rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .item-card {
+    padding: 1rem;
+    border-radius: 12px;
+    margin-bottom: 1rem;
+  }
+
+  .item-header h3 {
+    font-size: 1rem;
+  }
+
+  .form-group {
+    margin-bottom: 1rem;
+  }
+
+  .label {
+    font-size: 0.85rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .select, .input {
+    padding: 0.6rem 0.75rem;
+    font-size: 0.9rem;
+    border-radius: 10px;
+  }
+
+  .select {
+    text-overflow: ellipsis;
+  }
+
+  .dimensions {
+    flex-direction: row;
+    gap: 0.5rem;
+  }
+
+  .dimensions .form-group {
+    margin-bottom: 0;
+  }
+
+  .dimensions .input {
+    padding: 0.6rem 0.5rem;
+    text-align: center;
+  }
+
   .checkbox-group {
     grid-template-columns: 1fr;
+    gap: 0.5rem;
   }
-  .dimensions {
+
+  .checkbox-label {
+    padding: 0.6rem;
+    font-size: 0.85rem;
+    border-radius: 10px;
+  }
+
+  .add-btn {
+    padding: 0.75rem;
+    font-size: 0.9rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .global-settings {
+    padding-top: 1.25rem;
+  }
+
+  .section-title {
+    font-size: 1.1rem;
+  }
+
+  .slider-info {
+    font-size: 0.85rem;
     flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .result-box {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    border-radius: 12px;
+  }
+
+  .result-title {
+    font-size: 0.75rem;
+  }
+
+  .result-price {
+    font-size: 1.6rem;
+  }
+
+  .submit-btn {
+    margin-top: 1rem;
+    padding: 0.85rem;
+    font-size: 0.95rem;
+    border-radius: 10px;
   }
 }
