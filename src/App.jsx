@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { supabase } from './supabase.js';
 import { LOGO_BASE64 } from './logo.js';
 import './index.css';
 
@@ -17,17 +18,19 @@ const PROFILE_LABELS = {
 
 export default function App() {
   const [items, setItems] = useState([
-    { id: Date.now(), productType: 'window', profileType: 'cold-alu', chambers: '3', windowType: 'deaf', width: 1500, height: 1500, count: 1, needsRAL: false, needsTinting: false }
+    { id: Date.now(), productType: 'window', profileType: 'cold-alu', chambers: '3', windowType: 'deaf', width: '', height: '', count: '', needsRAL: false, needsTinting: false }
   ]);
 
   const [clientName, setClientName] = useState('');
+  const [clientPhone, setClientPhone] = useState('');
   const [clientCompany, setClientCompany] = useState('');
   const [needsInstallation, setNeedsInstallation] = useState(true);
   const [needsDemolition, setNeedsDemolition] = useState(false);
-  const [deliveryDistance, setDeliveryDistance] = useState(0);
+  const [deliveryDistance, setDeliveryDistance] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const addItem = () => {
-    setItems([...items, { id: Date.now(), productType: 'window', profileType: 'cold-alu', chambers: '3', windowType: 'deaf', width: 1000, height: 1000, count: 1, needsRAL: false, needsTinting: false }]);
+    setItems([...items, { id: Date.now(), productType: 'window', profileType: 'cold-alu', chambers: '3', windowType: 'deaf', width: '', height: '', count: '', needsRAL: false, needsTinting: false }]);
   };
 
   const removeItem = (id) => {
@@ -61,7 +64,7 @@ export default function App() {
   };
 
   const calcItem = (item) => {
-    let rawArea = (item.width * item.height) / 1000000;
+    let rawArea = ((item.width || 0) * (item.height || 0)) / 1000000;
     let area = rawArea;
 
     if (item.profileType === 'cold-alu' || item.profileType === 'warm-alu') {
@@ -69,7 +72,7 @@ export default function App() {
       else if (item.productType === 'window' && rawArea < 1) area = 1;
     }
 
-    let itemTotalArea = area * item.count;
+    let itemTotalArea = area * (item.count || 0);
 
     let basePricePerSqM = 0;
     if (item.profileType === 'cold-alu') {
@@ -109,7 +112,7 @@ export default function App() {
     let globalAdditive = 0;
     if (needsInstallation) globalAdditive += totalArea * 3600;
     if (needsDemolition) globalAdditive += totalArea * 1100;
-    globalAdditive += deliveryDistance * 75;
+    globalAdditive += (deliveryDistance || 0) * 75;
 
     const totalMin = (baseCostTotal + globalAdditive) * 0.95;
     const totalMax = (baseCostTotal + globalAdditive) * 1.05;
@@ -127,6 +130,33 @@ export default function App() {
 
   const totals = calculateTotal();
   const { min, max } = totals;
+
+  // ============ SUBMIT ORDER ============
+  const submitOrder = async () => {
+    setSubmitting(true);
+    try {
+      const t = calculateTotal();
+      const { error } = await supabase.from('orders').insert({
+        client_name: clientName || null,
+        client_phone: clientPhone || null,
+        client_company: clientCompany || null,
+        items: items.map(({ id, ...rest }) => rest),
+        needs_installation: needsInstallation,
+        needs_demolition: needsDemolition,
+        delivery_distance: deliveryDistance || 0,
+        total_area: parseFloat(t.totalArea.toFixed(2)),
+        price_min: t.minRaw,
+        price_max: t.maxRaw,
+      });
+      if (error) throw error;
+      alert('Заявка успешно отправлена! Мы свяжемся с вами для точного расчёта.');
+    } catch (err) {
+      console.error('Ошибка отправки:', err);
+      alert('Не удалось отправить заявку. Попробуйте ещё раз.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   // ============ PDF GENERATION ============
 
@@ -202,6 +232,7 @@ export default function App() {
     if (clientName || clientCompany) {
       const clientRows = [];
       if (clientName) clientRows.push({ text: [{ text: 'Заказчик: ', bold: true, color: blue }, { text: clientName, color: '#000000' }], fontSize: 10 });
+      if (clientPhone) clientRows.push({ text: [{ text: 'Телефон: ', bold: true, color: blue }, { text: clientPhone, color: '#000000' }], fontSize: 10, margin: [0, 2, 0, 0] });
       if (clientCompany) clientRows.push({ text: [{ text: 'Организация: ', bold: true, color: blue }, { text: clientCompany, color: '#000000' }], fontSize: 10, margin: [0, 2, 0, 0] });
       content.push({ stack: clientRows, margin: [0, 0, 0, 12] });
     }
@@ -426,9 +457,13 @@ export default function App() {
             <input type="text" className="input" placeholder="Иванов Иван Иванович" value={clientName} onChange={(e) => setClientName(e.target.value)}/>
           </div>
           <div className="form-group" style={{ flex: 1 }}>
-            <label className="label">Название организации</label>
-            <input type="text" className="input" placeholder="ООО «Название»" value={clientCompany} onChange={(e) => setClientCompany(e.target.value)}/>
+            <label className="label">Телефон</label>
+            <input type="tel" className="input" placeholder="+7 (999) 123-45-67" value={clientPhone} onChange={(e) => setClientPhone(e.target.value)}/>
           </div>
+        </div>
+        <div className="form-group">
+          <label className="label">Название организации</label>
+          <input type="text" className="input" placeholder="ООО «Название»" value={clientCompany} onChange={(e) => setClientCompany(e.target.value)}/>
         </div>
 
         <div className="items-list">
@@ -482,19 +517,19 @@ export default function App() {
               <div className="dimensions">
                 <div className="form-group" style={{ flex: 1 }}>
                   <label className="label">Ширина (мм)</label>
-                  <input type="number" className="input" value={item.width} onChange={(e) => updateItem(item.id, 'width', Number(e.target.value))} min="100"/>
+                  <input type="text" inputMode="numeric" className="input" value={item.width} onChange={(e) => updateItem(item.id, 'width', e.target.value === '' ? '' : Number(e.target.value))}/>
                 </div>
                 <div className="form-group" style={{ flex: 1 }}>
                   <label className="label">Высота (мм)</label>
-                  <input type="number" className="input" value={item.height} onChange={(e) => updateItem(item.id, 'height', Number(e.target.value))} min="100"/>
+                  <input type="text" inputMode="numeric" className="input" value={item.height} onChange={(e) => updateItem(item.id, 'height', e.target.value === '' ? '' : Number(e.target.value))}/>
                 </div>
                 <div className="form-group" style={{ flex: 0.5 }}>
                   <label className="label">Кол-во (шт)</label>
-                  <input type="number" className="input" value={item.count} onChange={(e) => updateItem(item.id, 'count', Number(e.target.value))} min="1"/>
+                  <input type="text" inputMode="numeric" className="input" value={item.count} onChange={(e) => updateItem(item.id, 'count', e.target.value === '' ? '' : Number(e.target.value))}/>
                 </div>
               </div>
 
-              <div className="checkbox-group" style={{ marginTop: '1rem' }}>
+              <div className="checkbox-group" style={{ marginTop: '0.5rem' }}>
                 {(item.profileType === 'cold-alu' || item.profileType === 'warm-alu') && (
                   <label className="checkbox-label">
                     <input type="checkbox" checked={item.needsRAL} onChange={(e) => updateItem(item.id, 'needsRAL', e.target.checked)}/>
@@ -515,12 +550,12 @@ export default function App() {
         <div className="global-settings">
           <h3 className="section-title">Общие услуги (на весь заказ)</h3>
 
-          <label className="checkbox-label" style={{ marginBottom: '0.75rem', display: 'inline-flex', width: '100%' }}>
+          <label className="checkbox-label" style={{ marginBottom: '0.5rem', display: 'inline-flex', width: '100%' }}>
             <input type="checkbox" checked={needsInstallation} onChange={(e) => setNeedsInstallation(e.target.checked)}/>
             Монтаж
           </label>
 
-          <label className="checkbox-label" style={{ marginBottom: '1.5rem', display: 'inline-flex', width: '100%' }}>
+          <label className="checkbox-label" style={{ marginBottom: '0.75rem', display: 'inline-flex', width: '100%' }}>
             <input type="checkbox" checked={needsDemolition} onChange={(e) => setNeedsDemolition(e.target.checked)}/>
             Демонтаж старых конструкций
           </label>
@@ -529,7 +564,7 @@ export default function App() {
             <div className="slider-info" style={{ alignItems: 'center' }}>
               <span>Удаленность объекта (доставка)</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <input type="number" className="input" style={{ width: '80px', padding: '0.4rem', textAlign: 'center' }} value={deliveryDistance} onChange={(e) => setDeliveryDistance(Number(e.target.value))} min="0" />
+                <input type="text" inputMode="numeric" className="input" style={{ width: '80px', padding: '0.4rem', textAlign: 'center' }} value={deliveryDistance} onChange={(e) => setDeliveryDistance(e.target.value === '' ? '' : Number(e.target.value))} />
                 <span>км</span>
               </div>
             </div>
@@ -547,8 +582,8 @@ export default function App() {
           <button className="pdf-btn" onClick={generatePDF}>
             Скачать КП (PDF)
           </button>
-          <button className="submit-btn" onClick={() => alert('Заявка со всеми конструкциями передана!')}>
-            Оставить заявку на точный расчет
+          <button className="submit-btn" onClick={submitOrder} disabled={submitting}>
+            {submitting ? 'Отправка...' : 'Оставить заявку на точный расчет'}
           </button>
         </div>
       </div>
