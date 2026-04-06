@@ -2,6 +2,7 @@
 
 .dashboard {
   min-height: 100vh;
+  min-width: 100%;
   background: #111827;
   color: #e5e7eb;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -207,6 +208,7 @@
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 14px;
   overflow: hidden;
+  min-height: 400px;
 }
 
 .panel-header {
@@ -266,8 +268,7 @@
 }
 
 .orders-list {
-  max-height: calc(100vh - 320px);
-  overflow-y: auto;
+  overflow-y: visible;
 }
 
 .orders-list::-webkit-scrollbar {
@@ -611,6 +612,140 @@
 .funnel-arrow {
   padding: 4px 0;
   color: #4b5563;
+}
+
+/* ===== SEARCH & FILTER ===== */
+
+.search-bar {
+  padding: 12px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  color: #6b7280;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  padding: 8px 12px 8px 34px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  color: #e5e7eb;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.search-input:focus {
+  border-color: #3b82f6;
+}
+
+.search-input::placeholder {
+  color: #6b7280;
+}
+
+.status-filter {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: transparent;
+  color: #9ca3af;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.filter-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #e5e7eb;
+}
+
+.filter-btn.active {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+/* ===== DELETE BUTTON ===== */
+
+.order-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.delete-btn {
+  background: none;
+  border: none;
+  color: #4b5563;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  opacity: 0;
+}
+
+.order-row:hover .delete-btn {
+  opacity: 1;
+}
+
+.delete-btn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* ===== DATE PICKER ===== */
+
+.custom-date-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.hidden-date-input {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.period-btn svg {
+  vertical-align: middle;
+}
+
+/* ===== LINE CHART ===== */
+
+.bar-chart-svg {
+  width: 100%;
+  height: auto;
+  display: block;
 }
 
 /* ===== RESPONSIVE ===== */

@@ -4,19 +4,13 @@ import './Dashboard.css';
 
 const STATUS_LABELS = {
   'new': 'Новая',
-  'calculating': 'На расчёте',
-  'kp_sent': 'КП отправлено',
   'order': 'Заказ',
-  'no_answer': 'Нет ответа',
   'rejected': 'Отказ',
 };
 
 const STATUS_COLORS = {
   'new': { bg: 'rgba(234, 179, 8, 0.15)', text: '#eab308', border: 'rgba(234, 179, 8, 0.3)' },
-  'calculating': { bg: 'rgba(59, 130, 246, 0.15)', text: '#3b82f6', border: 'rgba(59, 130, 246, 0.3)' },
-  'kp_sent': { bg: 'rgba(139, 92, 246, 0.15)', text: '#8b5cf6', border: 'rgba(139, 92, 246, 0.3)' },
   'order': { bg: 'rgba(34, 197, 94, 0.15)', text: '#22c55e', border: 'rgba(34, 197, 94, 0.3)' },
-  'no_answer': { bg: 'rgba(156, 163, 175, 0.15)', text: '#9ca3af', border: 'rgba(156, 163, 175, 0.3)' },
   'rejected': { bg: 'rgba(239, 68, 68, 0.15)', text: '#ef4444', border: 'rgba(239, 68, 68, 0.3)' },
 };
 
@@ -38,6 +32,7 @@ const PERIOD_OPTIONS = [
   { key: 'week', label: 'Неделя' },
   { key: 'month', label: 'Месяц' },
   { key: 'all', label: 'Всё время' },
+  { key: 'custom', label: 'Дата' },
 ];
 
 const PIE_COLORS = ['#3b82f6', '#8b5cf6', '#22c55e', '#eab308', '#ef4444', '#ec4899', '#06b6d4'];
@@ -53,22 +48,45 @@ function formatMoney(n) {
   return n.toLocaleString('ru-RU') + ' ₽';
 }
 
-function getStartDate(period) {
+function getDateRange(period, customDate) {
   const now = new Date();
+  if (period === 'custom' && customDate) {
+    const start = new Date(customDate + 'T00:00:00');
+    const end = new Date(customDate + 'T23:59:59');
+    return { start: start.toISOString(), end: end.toISOString() };
+  }
   if (period === 'today') {
-    return new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    return { start: new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString(), end: null };
   }
   if (period === 'week') {
     const d = new Date(now);
     d.setDate(d.getDate() - 7);
-    return d.toISOString();
+    return { start: d.toISOString(), end: null };
   }
   if (period === 'month') {
     const d = new Date(now);
     d.setMonth(d.getMonth() - 1);
-    return d.toISOString();
+    return { start: d.toISOString(), end: null };
   }
-  return null;
+  return { start: null, end: null };
+}
+
+function groupByDay(orders) {
+  const groups = {};
+  orders.forEach((o) => {
+    const day = o.created_at.slice(0, 10);
+    if (!groups[day]) groups[day] = [];
+    groups[day].push(o);
+  });
+  const sortedKeys = Object.keys(groups).sort();
+  return sortedKeys.map((day) => ({
+    day,
+    label: day.slice(8) + '.' + day.slice(5, 7),
+    orders: groups[day],
+    count: groups[day].length,
+    sum: groups[day].filter((o) => o.status === 'order').reduce((s, o) => s + (o.price_max || 0), 0),
+    orderCount: groups[day].filter((o) => o.status === 'order').length,
+  }));
 }
 
 function itemsSummary(items) {
@@ -81,6 +99,81 @@ function itemsSummary(items) {
     groups[key] = (groups[key] || 0) + (it.count || 1);
   });
   return Object.entries(groups).map(([k, v]) => `${v}× ${k}`).join(', ');
+}
+
+/* ==================== BAR CHART ==================== */
+
+function MiniBarChart({ data, dataKey, color, label, formatValue }) {
+  if (!data || data.length === 0) return <div className="empty-chart">Нет данных</div>;
+
+  const values = data.map((d) => d[dataKey]);
+  const maxVal = Math.max(...values, 1);
+
+  const W = 320;
+  const H = 140;
+  const padX = 40;
+  const padTop = 16;
+  const padBottom = 34;
+  const chartW = W - padX - 8;
+  const chartH = H - padTop - padBottom;
+
+  const barGap = 4;
+  const barW = Math.min(32, (chartW - barGap * (data.length - 1)) / data.length);
+  const totalBarsW = data.length * barW + (data.length - 1) * barGap;
+  const offsetX = padX + (chartW - totalBarsW) / 2;
+
+  const gridLines = 3;
+  const gridVals = Array.from({ length: gridLines }, (_, i) => (maxVal / (gridLines - 1)) * i);
+
+  return (
+    <div className="chart-card">
+      <h3 className="chart-title">{label}</h3>
+      <svg viewBox={`0 0 ${W} ${H}`} className="bar-chart-svg">
+        {gridVals.map((v, i) => {
+          const y = padTop + chartH - (v / maxVal) * chartH;
+          return (
+            <g key={i}>
+              <line x1={padX - 4} y1={y} x2={W - 8} y2={y} stroke="rgba(255,255,255,0.06)" strokeWidth="0.5" />
+              <text x={padX - 6} y={y + 3} textAnchor="end" fill="#6b7280" fontSize="8">
+                {formatValue ? formatValue(v) : Math.round(v)}
+              </text>
+            </g>
+          );
+        })}
+        <defs>
+          <linearGradient id={`bar-grad-${dataKey}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity="1" />
+            <stop offset="100%" stopColor={color} stopOpacity="0.4" />
+          </linearGradient>
+        </defs>
+        {data.map((d, i) => {
+          const barH = maxVal > 0 ? (d[dataKey] / maxVal) * chartH : 0;
+          const x = offsetX + i * (barW + barGap);
+          const y = padTop + chartH - barH;
+          return (
+            <g key={i}>
+              <rect x={x} y={y} width={barW} height={barH} rx={2} fill={`url(#bar-grad-${dataKey})`} />
+              <text x={x + barW / 2} y={y - 6} textAnchor="middle" fill="#e5e7eb" fontSize="9" fontWeight="600">
+                {formatValue ? formatValue(d[dataKey]) : d[dataKey]}
+              </text>
+              {data.length <= 31 && (
+                <text
+                  x={x + barW / 2}
+                  y={padTop + chartH + 6}
+                  textAnchor="end"
+                  fill="#6b7280"
+                  fontSize="8"
+                  transform={`rotate(-45, ${x + barW / 2}, ${padTop + chartH + 6})`}
+                >
+                  {d.label}
+                </text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
 }
 
 /* ==================== MAIN COMPONENT ==================== */
@@ -161,6 +254,9 @@ export default function Dashboard() {
 function DashboardContent({ onLogout }) {
   const [orders, setOrders] = useState([]);
   const [period, setPeriod] = useState('all');
+  const [customDate, setCustomDate] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [openDropdown, setOpenDropdown] = useState(null);
   const dropdownRef = useRef(null);
@@ -168,8 +264,9 @@ function DashboardContent({ onLogout }) {
   const fetchOrders = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     let query = supabase.from('orders').select('*').order('created_at', { ascending: false });
-    const start = getStartDate(period);
+    const { start, end } = getDateRange(period, customDate);
     if (start) query = query.gte('created_at', start);
+    if (end) query = query.lte('created_at', end);
     const { data, error } = await query;
     if (error) {
       console.error('Supabase error:', error);
@@ -178,7 +275,7 @@ function DashboardContent({ onLogout }) {
       setOrders(data || []);
     }
     if (!silent) setLoading(false);
-  }, [period]);
+  }, [period, customDate]);
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
@@ -205,6 +302,27 @@ function DashboardContent({ onLogout }) {
     }
   };
 
+  const deleteOrder = async (id) => {
+    if (!window.confirm('Удалить эту заявку?')) return;
+    const { error } = await supabase.from('orders').delete().eq('id', id);
+    if (!error) {
+      setOrders((prev) => prev.filter((o) => o.id !== id));
+    }
+  };
+
+  /* -------- filtered orders -------- */
+  const filteredOrders = orders.filter((o) => {
+    if (statusFilter !== 'all' && o.status !== statusFilter) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const name = (o.client_name || '').toLowerCase();
+      const phone = (o.client_phone || '').toLowerCase();
+      const company = (o.client_company || '').toLowerCase();
+      if (!name.includes(q) && !phone.includes(q) && !company.includes(q)) return false;
+    }
+    return true;
+  });
+
   /* -------- stats -------- */
   const totalCount = orders.length;
   const orderItems = orders.filter((o) => o.status === 'order');
@@ -215,12 +333,15 @@ function DashboardContent({ onLogout }) {
   /* -------- charts data -------- */
   const productCounts = {};
   const profileCounts = {};
-  orders.forEach((o) => {
+  orders.filter((o) => o.status === 'order').forEach((o) => {
     if (!o.items || !Array.isArray(o.items)) return;
     o.items.forEach((it) => {
       const pLabel = PRODUCT_LABELS[it.productType] || it.productType || '?';
       productCounts[pLabel] = (productCounts[pLabel] || 0) + (it.count || 1);
-      const prLabel = PROFILE_LABELS[it.profileType] || it.profileType || '?';
+      let prLabel = PROFILE_LABELS[it.profileType] || it.profileType || '?';
+      if (it.profileType === 'pvc') {
+        prLabel = it.chambers === '5' ? 'ПВХ 5-кам.' : 'ПВХ 3-кам.';
+      }
       profileCounts[prLabel] = (profileCounts[prLabel] || 0) + (it.count || 1);
     });
   });
@@ -228,12 +349,18 @@ function DashboardContent({ onLogout }) {
   const productTotal = Object.values(productCounts).reduce((a, b) => a + b, 0) || 1;
   const profileTotal = Object.values(profileCounts).reduce((a, b) => a + b, 0) || 1;
 
+  /* dynamics data */
+  const dailyData = groupByDay(orders);
+  const dailyWithConversion = dailyData.map((d) => ({
+    ...d,
+    conversion: d.count > 0 ? Math.round((d.orderCount / d.count) * 100) : 0,
+  }));
+
   /* funnel */
   const funnelSteps = [
     { key: 'new', label: 'Новые', color: '#eab308' },
-    { key: 'calculating', label: 'На расчёте', color: '#3b82f6' },
-    { key: 'kp_sent', label: 'КП отправлено', color: '#8b5cf6' },
     { key: 'order', label: 'Заказ', color: '#22c55e' },
+    { key: 'rejected', label: 'Отказ', color: '#ef4444' },
   ];
   const funnelCounts = {};
   funnelSteps.forEach((s) => {
@@ -282,13 +409,43 @@ function DashboardContent({ onLogout }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div className="period-selector">
             {PERIOD_OPTIONS.map((p) => (
-              <button
-                key={p.key}
-                className={`period-btn ${period === p.key ? 'active' : ''}`}
-                onClick={() => setPeriod(p.key)}
-              >
-                {p.label}
-              </button>
+              p.key === 'custom' ? (
+                <div key={p.key} className="custom-date-wrapper">
+                  <button
+                    className={`period-btn ${period === 'custom' ? 'active' : ''}`}
+                    onClick={() => {
+                      const input = document.getElementById('dashboard-date-picker');
+                      if (input) input.showPicker();
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ marginRight: 4 }}>
+                      <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2"/>
+                      <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                    {period === 'custom' && customDate
+                      ? customDate.slice(5).replace('-', '.')
+                      : p.label}
+                  </button>
+                  <input
+                    id="dashboard-date-picker"
+                    type="date"
+                    className="hidden-date-input"
+                    value={customDate}
+                    onChange={(e) => {
+                      setCustomDate(e.target.value);
+                      setPeriod('custom');
+                    }}
+                  />
+                </div>
+              ) : (
+                <button
+                  key={p.key}
+                  className={`period-btn ${period === p.key ? 'active' : ''}`}
+                  onClick={() => setPeriod(p.key)}
+                >
+                  {p.label}
+                </button>
+              )
             ))}
           </div>
           <button onClick={onLogout} className="logout-btn">Выйти</button>
@@ -302,8 +459,8 @@ function DashboardContent({ onLogout }) {
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 5h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </div>
           <div className="stat-content">
-            <span className="stat-label">Заявок пришло</span>
-            <span className="stat-value">{totalCount.toLocaleString('ru-RU')}</span>
+            <span className="stat-label">Заявок / Заказов / Отказов</span>
+            <span className="stat-value">{totalCount.toLocaleString('ru-RU')} / <span style={{ color: '#22c55e' }}>{orderItems.length}</span> / <span style={{ color: '#ef4444' }}>{orders.filter((o) => o.status === 'rejected').length}</span></span>
           </div>
         </div>
         <div className="stat-card">
@@ -339,9 +496,33 @@ function DashboardContent({ onLogout }) {
       <div className="dashboard-main">
         {/* LEFT: ORDERS TABLE */}
         <div className="orders-panel">
-          <div className="panel-header">
-            <h2 className="panel-title">Заявки</h2>
-            <span className="panel-count">{totalCount}</span>
+          <div className="search-bar">
+            <div className="search-input-wrapper">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="search-icon">
+                <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2"/>
+                <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+              <input
+                type="text"
+                className="search-input"
+                placeholder="Поиск по имени, телефону..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <div className="status-filter">
+              <button className={`filter-btn ${statusFilter === 'all' ? 'active' : ''}`} onClick={() => setStatusFilter('all')}>Все</button>
+              {Object.entries(STATUS_LABELS).map(([key, label]) => (
+                <button
+                  key={key}
+                  className={`filter-btn ${statusFilter === key ? 'active' : ''}`}
+                  style={statusFilter === key ? { background: STATUS_COLORS[key]?.bg, color: STATUS_COLORS[key]?.text, borderColor: STATUS_COLORS[key]?.border } : {}}
+                  onClick={() => setStatusFilter(key)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {loading ? (
@@ -349,14 +530,14 @@ function DashboardContent({ onLogout }) {
               <div className="spinner" />
               <span>Загрузка данных...</span>
             </div>
-          ) : orders.length === 0 ? (
+          ) : filteredOrders.length === 0 ? (
             <div className="empty-state">
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" stroke="#4b5563" strokeWidth="1.5"/><path d="M9 5a2 2 0 012-2h2a2 2 0 012 2M9 5h6" stroke="#4b5563" strokeWidth="1.5"/></svg>
               <span>Нет заявок за выбранный период</span>
             </div>
           ) : (
             <div className="orders-list">
-              {orders.map((order) => {
+              {filteredOrders.map((order) => {
                 const sc = STATUS_COLORS[order.status] || STATUS_COLORS['new'];
                 return (
                   <div key={order.id} className="order-row">
@@ -411,7 +592,14 @@ function DashboardContent({ onLogout }) {
                         </div>
                       </div>
                     </div>
-                    <div className="order-items">{itemsSummary(order.items)}</div>
+                    <div className="order-bottom">
+                      <div className="order-items">{itemsSummary(order.items)}</div>
+                      <button className="delete-btn" onClick={() => deleteOrder(order.id)} title="Удалить заявку">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                          <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -421,6 +609,28 @@ function DashboardContent({ onLogout }) {
 
         {/* RIGHT: ANALYTICS */}
         <div className="analytics-panel">
+          {/* DYNAMICS CHARTS */}
+          <MiniBarChart
+            data={dailyWithConversion}
+            dataKey="count"
+            color="#3b82f6"
+            label="Динамика заявок"
+          />
+          <MiniBarChart
+            data={dailyWithConversion}
+            dataKey="sum"
+            color="#22c55e"
+            label="Динамика сумм"
+            formatValue={(v) => v >= 1000000 ? (v / 1000000).toFixed(3) + ' млн' : Math.round(v / 1000) + ' тыс'}
+          />
+          <MiniBarChart
+            data={dailyWithConversion}
+            dataKey="conversion"
+            color="#8b5cf6"
+            label="Конверсия, %"
+            formatValue={(v) => Math.round(v) + '%'}
+          />
+
           {/* PIE CHART */}
           <div className="chart-card">
             <h3 className="chart-title">Типы продукции</h3>
@@ -448,7 +658,7 @@ function DashboardContent({ onLogout }) {
                     {productTotal}
                   </text>
                   <text x="100" y="115" textAnchor="middle" fill="#9ca3af" fontSize="11">
-                    позиций
+                    шт.
                   </text>
                 </svg>
                 <div className="pie-legend">
@@ -456,7 +666,7 @@ function DashboardContent({ onLogout }) {
                     <div key={i} className="legend-item">
                       <span className="legend-dot" style={{ background: s.color }} />
                       <span className="legend-label">{s.label}</span>
-                      <span className="legend-value">{s.count}</span>
+                      <span className="legend-value">{s.count} шт.</span>
                       <span className="legend-pct">{(s.pct * 100).toFixed(0)}%</span>
                     </div>
                   ))}
@@ -467,7 +677,7 @@ function DashboardContent({ onLogout }) {
 
           {/* PROFILE BARS */}
           <div className="chart-card">
-            <h3 className="chart-title">Типы профиля</h3>
+            <h3 className="chart-title">Типы профиля <span style={{ fontSize: '11px', color: '#6b7280', fontWeight: 400 }}>(кол-во изделий)</span></h3>
             {Object.keys(profileCounts).length === 0 ? (
               <div className="empty-chart">Нет данных</div>
             ) : (
@@ -478,7 +688,7 @@ function DashboardContent({ onLogout }) {
                     <div key={label} className="bar-row">
                       <div className="bar-label-row">
                         <span className="bar-label">{label}</span>
-                        <span className="bar-value">{count}</span>
+                        <span className="bar-value">{count} изд.</span>
                       </div>
                       <div className="bar-track">
                         <div
