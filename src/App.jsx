@@ -207,35 +207,14 @@ export default function App() {
 
   // ============ PDF GENERATION ============
 
-  const PRODUCT_IMAGES = {
-    'door': '/images/door.webp',
-    'partition': '/images/partition.jpg',
-    'sliding-balcony': '/images/sliding-balcony.webp',
-    'window-opening': '/images/window.webp',
-  };
-
-  const loadImageAsBase64 = (url) => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0);
-        resolve(canvas.toDataURL('image/png'));
-      };
-      img.onerror = () => resolve(null);
-      img.src = url;
-    });
-  };
-
-  // Рисует схему конструкции через SVG
+  // Рисует схему конструкции через SVG — разный чертёж для каждого типа
   const drawSchema = (item) => {
     const maxW = 160;
     const maxH = 120;
-    const ratio = item.width / item.height;
+    // Раздвижная лоджия всегда горизонтальная (минимум 2:1)
+    const ratio = item.productType === 'sliding-balcony'
+      ? Math.max(item.width / item.height, 2.2)
+      : item.width / item.height;
     let dW, dH;
     if (ratio > maxW / maxH) { dW = maxW; dH = maxW / ratio; }
     else { dH = maxH; dW = maxH * ratio; }
@@ -243,6 +222,97 @@ export default function App() {
     const ox = 5;
     const oy = 5;
     const fill = item.profileType === 'pvc' ? '#d4f0f7' : '#f5f5a0';
+    const fr = 3; // толщина рамы
+
+    // Внутренний контент по типу изделия
+    let inner = '';
+    // Координаты внутренней области
+    const ix = ox + fr;
+    const iy = oy + fr;
+    const iW = dW - fr * 2;
+    const iH = dH - fr * 2;
+
+    if (item.productType === 'window' && item.windowType === 'opening') {
+      // Окно с открываемой створкой: левая глухая, правая с X (поворотно-откидная) + ручка
+      const fillW = '#f5a623';
+      const mid = ox + dW / 2;
+      const rL = mid + 2;
+      const rR = ox + dW - fr;
+      const rT = iy;
+      const rB = iy + iH;
+      inner = `
+        <rect x="${ix}" y="${iy}" width="${mid - ix - 1}" height="${iH}" fill="${fillW}" stroke="#999" stroke-width="0.5"/>
+        <rect x="${rL}" y="${rT}" width="${rR - rL}" height="${iH}" fill="${fillW}" stroke="#999" stroke-width="0.5"/>
+        <line x1="${mid}" y1="${oy}" x2="${mid}" y2="${oy + dH}" stroke="#555" stroke-width="2"/>
+        <line x1="${rL}" y1="${rT}" x2="${rR}" y2="${rB}" stroke="#333" stroke-width="0.5"/>
+        <line x1="${rR}" y1="${rT}" x2="${rL}" y2="${rB}" stroke="#333" stroke-width="0.5"/>
+        <rect x="${mid + 3}" y="${oy + dH / 2 - 5}" width="3" height="10" rx="1" fill="#555"/>`;
+
+    } else if (item.productType === 'door') {
+      // Дверь: 2 секции (верх стекло + низ), X в каждой, ручка слева, петли справа
+      const fillD = '#d4b830';
+      const topH = iH * 0.62;
+      const botY = iy + topH + 2;
+      const botH = iH - topH - 2;
+      inner = `
+        <rect x="${ix}" y="${iy}" width="${iW}" height="${topH}" fill="${fillD}" stroke="#999" stroke-width="0.5"/>
+        <rect x="${ix}" y="${botY}" width="${iW}" height="${botH}" fill="${fillD}" stroke="#999" stroke-width="0.5"/>
+        <line x1="${ix}" y1="${iy}" x2="${ix + iW}" y2="${iy + topH}" stroke="#333" stroke-width="0.5"/>
+        <line x1="${ix + iW}" y1="${iy}" x2="${ix}" y2="${iy + topH}" stroke="#333" stroke-width="0.5"/>
+        <line x1="${ix}" y1="${botY}" x2="${ix + iW}" y2="${botY + botH}" stroke="#333" stroke-width="0.5"/>
+        <line x1="${ix + iW}" y1="${botY}" x2="${ix}" y2="${botY + botH}" stroke="#333" stroke-width="0.5"/>
+        <rect x="${ix + 3}" y="${oy + dH / 2 - 5}" width="5" height="2" rx="0.5" fill="#555"/>
+        <rect x="${ox + dW - fr - 2}" y="${iy + 6}" width="2" height="5" rx="0.5" fill="#888"/>
+        <rect x="${ox + dW - fr - 2}" y="${iy + topH - 6}" width="2" height="5" rx="0.5" fill="#888"/>
+        <rect x="${ox + dW - fr - 2}" y="${botY + botH - 8}" width="2" height="5" rx="0.5" fill="#888"/>`;
+
+    } else if (item.productType === 'partition') {
+      // Перегородка — как на картинке: бирюзовая, 2 колонки, верхние больше нижних
+      const fillP = '#00d4c8';
+      const mid = ox + dW / 2;
+      const splitY = oy + dH * 0.65;
+      inner = `
+        <rect x="${ix}" y="${iy}" width="${mid - ix - 1}" height="${splitY - iy - 1}" fill="${fillP}" stroke="#999" stroke-width="0.5"/>
+        <rect x="${mid + 1}" y="${iy}" width="${ox + dW - fr - mid - 1}" height="${splitY - iy - 1}" fill="${fillP}" stroke="#999" stroke-width="0.5"/>
+        <rect x="${ix}" y="${splitY + 1}" width="${mid - ix - 1}" height="${oy + dH - fr - splitY - 1}" fill="${fillP}" stroke="#999" stroke-width="0.5"/>
+        <rect x="${mid + 1}" y="${splitY + 1}" width="${ox + dW - fr - mid - 1}" height="${oy + dH - fr - splitY - 1}" fill="${fillP}" stroke="#999" stroke-width="0.5"/>
+        <line x1="${mid}" y1="${oy}" x2="${mid}" y2="${oy + dH}" stroke="#555" stroke-width="2"/>
+        <line x1="${ox}" y1="${splitY}" x2="${ox + dW}" y2="${splitY}" stroke="#555" stroke-width="2"/>`;
+
+    } else if (item.productType === 'sliding-balcony') {
+      // Раздвижная лоджия: 4 секции, бирюзовая, ромбы-стрелки → ← → ←
+      const fillS = '#c0f5f5';
+      const sec = 4;
+      const secW = iW / sec;
+      let panels = '';
+      for (let i = 0; i < sec; i++) {
+        const sx = ix + i * secW;
+        panels += `<rect x="${sx + 1}" y="${iy}" width="${secW - 2}" height="${iH}" fill="${fillS}" stroke="#999" stroke-width="0.5"/>`;
+      }
+      const cy = oy + dH / 2;
+      const s = 7; // размер ромба
+      let arrows = '';
+      for (let i = 0; i < sec; i++) {
+        const cx = ix + i * secW + secW / 2;
+        const dir = (i % 2 === 0) ? 1 : -1;
+        // Ромб (контур)
+        arrows += `<polygon points="${cx},${cy - s} ${cx + s},${cy} ${cx},${cy + s} ${cx - s},${cy}" fill="none" stroke="#555" stroke-width="0.7"/>`;
+        // Стрелка внутри ромба
+        arrows += `<polygon points="${cx + dir * 2},${cy - 2} ${cx + dir * 2},${cy + 2} ${cx + dir * 5},${cy}" fill="#555"/>`;
+      }
+      // Ручки между парами створок
+      const h1x = ix + secW * 1;
+      const h2x = ix + secW * 3;
+      inner = `
+        ${panels}
+        ${arrows}
+        <rect x="${h1x - 1}" y="${cy - 5}" width="2" height="10" rx="0.5" fill="#888"/>
+        <rect x="${h2x - 1}" y="${cy - 5}" width="2" height="10" rx="0.5" fill="#888"/>`;
+
+    } else {
+      // Глухое окно (по умолчанию)
+      inner = `<rect x="${ix}" y="${iy}" width="${iW}" height="${iH}" fill="${fill}" stroke="#999" stroke-width="0.5"/>`;
+    }
 
     const bY = oy + dH + 14;
     const rX = ox + dW + 14;
@@ -252,7 +322,7 @@ export default function App() {
     const svg = `
       <svg width="${svgW}" height="${svgH}" xmlns="http://www.w3.org/2000/svg">
         <rect x="${ox}" y="${oy}" width="${dW}" height="${dH}" fill="none" stroke="#333" stroke-width="2"/>
-        <rect x="${ox + 3}" y="${oy + 3}" width="${dW - 6}" height="${dH - 6}" fill="${fill}" stroke="#999" stroke-width="0.5"/>
+        ${inner}
         <line x1="${ox}" y1="${bY}" x2="${ox + dW}" y2="${bY}" stroke="#333" stroke-width="0.7"/>
         <line x1="${ox}" y1="${bY - 4}" x2="${ox}" y2="${bY + 4}" stroke="#333" stroke-width="0.7"/>
         <line x1="${ox + dW}" y1="${bY - 4}" x2="${ox + dW}" y2="${bY + 4}" stroke="#333" stroke-width="0.7"/>
@@ -266,21 +336,7 @@ export default function App() {
     return { svg, width: 200, height: svgH };
   };
 
-  const generatePDF = async () => {
-    // Предзагрузка реальных фото изделий
-    const imageCache = {};
-    const imageKeys = new Set();
-    items.forEach(item => {
-      if (item.productType === 'door' || item.productType === 'partition' || item.productType === 'sliding-balcony') {
-        imageKeys.add(item.productType);
-      } else if (item.productType === 'window' && item.windowType === 'opening') {
-        imageKeys.add('window-opening');
-      }
-    });
-    await Promise.all([...imageKeys].map(async (key) => {
-      const base64 = await loadImageAsBase64(PRODUCT_IMAGES[key]);
-      if (base64) imageCache[key] = base64;
-    }));
+  const generatePDF = () => {
     const blue = '#005a8c';
     const today = new Date().toLocaleDateString('ru-RU');
 
@@ -354,17 +410,10 @@ export default function App() {
         }
       });
 
-      // Схема + спецификация — реальное фото или SVG-чертёж
-      const imageKey = (item.productType === 'window' && item.windowType === 'opening')
-        ? 'window-opening'
-        : item.productType;
-      const photo = imageCache[imageKey];
-
+      // Схема + спецификация
       content.push({
         columns: [
-          photo
-            ? { image: photo, width: 120, margin: [0, 0, 0, 0] }
-            : drawSchema(item),
+          drawSchema(item),
           // Характеристики
           {
             width: '*',
