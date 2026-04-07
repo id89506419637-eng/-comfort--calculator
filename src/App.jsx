@@ -148,7 +148,38 @@ export default function App() {
   const { min, max } = totals;
 
   // ============ SUBMIT ORDER ============
+  const validateOrder = () => {
+    if (!clientName || clientName.trim().length < 2) {
+      alert('Введите ФИО клиента (минимум 2 символа)');
+      return false;
+    }
+    if (clientName.length > 255) {
+      alert('ФИО слишком длинное');
+      return false;
+    }
+    if (clientPhone && !/^[\d\s\-\+\(\)]{7,20}$/.test(clientPhone)) {
+      alert('Некорректный формат телефона');
+      return false;
+    }
+    for (const item of items) {
+      if (!item.width || item.width <= 0 || item.width > 50000) {
+        alert('Укажите корректную ширину (1–50000 мм)');
+        return false;
+      }
+      if (!item.height || item.height <= 0 || item.height > 50000) {
+        alert('Укажите корректную высоту (1–50000 мм)');
+        return false;
+      }
+      if (!item.count || item.count <= 0 || item.count > 999) {
+        alert('Укажите корректное количество (1–999)');
+        return false;
+      }
+    }
+    return true;
+  };
+
   const submitOrder = async () => {
+    if (!validateOrder()) return;
     setSubmitting(true);
     try {
       const t = calculateTotal();
@@ -167,7 +198,7 @@ export default function App() {
       if (error) throw error;
       alert('Заявка успешно отправлена! Мы свяжемся с вами для точного расчёта.');
     } catch (err) {
-      console.error('Ошибка отправки:', err);
+      console.error('Ошибка отправки заявки');
       alert('Не удалось отправить заявку. Попробуйте ещё раз.');
     } finally {
       setSubmitting(false);
@@ -175,6 +206,30 @@ export default function App() {
   };
 
   // ============ PDF GENERATION ============
+
+  const PRODUCT_IMAGES = {
+    'door': '/images/door.webp',
+    'partition': '/images/partition.jpg',
+    'sliding-balcony': '/images/sliding-balcony.webp',
+    'window-opening': '/images/window.webp',
+  };
+
+  const loadImageAsBase64 = (url) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = () => resolve(null);
+      img.src = url;
+    });
+  };
 
   // Рисует схему конструкции через SVG
   const drawSchema = (item) => {
@@ -211,7 +266,21 @@ export default function App() {
     return { svg, width: 200, height: svgH };
   };
 
-  const generatePDF = () => {
+  const generatePDF = async () => {
+    // Предзагрузка реальных фото изделий
+    const imageCache = {};
+    const imageKeys = new Set();
+    items.forEach(item => {
+      if (item.productType === 'door' || item.productType === 'partition' || item.productType === 'sliding-balcony') {
+        imageKeys.add(item.productType);
+      } else if (item.productType === 'window' && item.windowType === 'opening') {
+        imageKeys.add('window-opening');
+      }
+    });
+    await Promise.all([...imageKeys].map(async (key) => {
+      const base64 = await loadImageAsBase64(PRODUCT_IMAGES[key]);
+      if (base64) imageCache[key] = base64;
+    }));
     const blue = '#005a8c';
     const today = new Date().toLocaleDateString('ru-RU');
 
@@ -285,11 +354,17 @@ export default function App() {
         }
       });
 
-      // Схема + спецификация
+      // Схема + спецификация — реальное фото или SVG-чертёж
+      const imageKey = (item.productType === 'window' && item.windowType === 'opening')
+        ? 'window-opening'
+        : item.productType;
+      const photo = imageCache[imageKey];
+
       content.push({
         columns: [
-          // Чертёж
-          drawSchema(item),
+          photo
+            ? { image: photo, width: 120, margin: [0, 0, 0, 0] }
+            : drawSchema(item),
           // Характеристики
           {
             width: '*',

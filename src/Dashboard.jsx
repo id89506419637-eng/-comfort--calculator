@@ -239,7 +239,7 @@ export default function Dashboard() {
     return (
       <div className="dashboard" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
         <form onSubmit={handleLogin} className="login-form">
-          <h2 style={{ textAlign: 'center', marginBottom: '0.5rem', color: '#e5e7eb' }}>Комфорт+ Дашборд</h2>
+          <h2 style={{ textAlign: 'center', marginBottom: '0.5rem', color: '#e5e7eb' }}>Комфорт+</h2>
           <p style={{ textAlign: 'center', marginBottom: '1.5rem', color: '#9ca3af', fontSize: '0.875rem' }}>Войдите для доступа к заявкам</p>
           <input
             type="email"
@@ -274,6 +274,9 @@ function DashboardContent({ onLogout }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showSummary, setShowSummary] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [passwordMsg, setPasswordMsg] = useState('');
   const [loading, setLoading] = useState(true);
   const [openDropdown, setOpenDropdown] = useState(null);
   const [modal, setModal] = useState(null); // { type: 'order'|'rejected', orderId }
@@ -288,7 +291,7 @@ function DashboardContent({ onLogout }) {
     if (end) query = query.lte('created_at', end);
     const { data, error } = await query;
     if (error) {
-      console.error('Supabase error:', error);
+      console.error('Ошибка загрузки данных');
       if (!silent) setOrders([]);
     } else {
       setOrders(data || []);
@@ -565,6 +568,9 @@ function DashboardContent({ onLogout }) {
             ))}
           </div>
           <button onClick={() => setShowSummary(true)} className="summary-btn">Итоги</button>
+          <button onClick={() => { setShowPassword(true); setNewPassword(''); setPasswordMsg(''); }} className="password-btn" title="Сменить пароль">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" strokeWidth="2"/><path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+          </button>
           <button onClick={onLogout} className="logout-btn">Выйти</button>
         </div>
       </header>
@@ -981,6 +987,44 @@ function DashboardContent({ onLogout }) {
             <div className="modal-buttons">
               <button className="modal-btn-cancel" onClick={() => setModal(null)}>Отмена</button>
               <button className="modal-btn-reject" onClick={submitModal}>Отказ</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CHANGE PASSWORD */}
+      {showPassword && (
+        <div className="modal-overlay" onClick={() => setShowPassword(false)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <h3 className="modal-title">Сменить пароль</h3>
+            <div className="modal-field">
+              <label>Новый пароль (минимум 6 символов)</label>
+              <input
+                type="password"
+                placeholder="Введите новый пароль"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+            </div>
+            {passwordMsg && (
+              <p style={{ fontSize: '13px', margin: '0 0 12px', color: passwordMsg.includes('успешно') ? '#22c55e' : '#ef4444' }}>{passwordMsg}</p>
+            )}
+            <div className="modal-buttons">
+              <button className="modal-btn-cancel" onClick={() => setShowPassword(false)}>Отмена</button>
+              <button className="modal-btn-confirm" onClick={async () => {
+                if (newPassword.length < 6) {
+                  setPasswordMsg('Пароль должен быть минимум 6 символов');
+                  return;
+                }
+                const { error } = await supabase.auth.updateUser({ password: newPassword });
+                if (error) {
+                  setPasswordMsg('Ошибка смены пароля. Попробуйте ещё раз.');
+                } else {
+                  setPasswordMsg('Пароль успешно изменён!');
+                  setNewPassword('');
+                  setTimeout(() => setShowPassword(false), 1500);
+                }
+              }}>Сменить</button>
             </div>
           </div>
         </div>
