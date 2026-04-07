@@ -209,7 +209,7 @@ export default function App() {
 
   // Рисует схему конструкции через SVG — разный чертёж для каждого типа
   const drawSchema = (item) => {
-    const maxW = 160;
+    const maxW = item.productType === 'sliding-balcony' ? 130 : 160;
     const maxH = 120;
     // Раздвижная лоджия всегда горизонтальная (минимум 2:1)
     const ratio = item.productType === 'sliding-balcony'
@@ -233,35 +233,40 @@ export default function App() {
     const iH = dH - fr * 2;
 
     if (item.productType === 'window' && item.windowType === 'opening') {
-      // Окно с открываемой створкой: левая глухая, правая с X (поворотно-откидная) + ручка
+      // Окно: левая глухая, правая поворотно-откидная
+      // Поворот: от ручки (лев. центр правой створки) к правому верхнему и правому нижнему углам
+      // Откид: от верхнего центра правой створки к нижнему левому и нижнему правому углам
       const fillW = '#f5a623';
       const mid = ox + dW / 2;
       const rL = mid + 2;
       const rR = ox + dW - fr;
       const rT = iy;
       const rB = iy + iH;
+      const rCy = iy + iH / 2;
+      const rCx = rL + (rR - rL) / 2;
       inner = `
         <rect x="${ix}" y="${iy}" width="${mid - ix - 1}" height="${iH}" fill="${fillW}" stroke="#999" stroke-width="0.5"/>
         <rect x="${rL}" y="${rT}" width="${rR - rL}" height="${iH}" fill="${fillW}" stroke="#999" stroke-width="0.5"/>
         <line x1="${mid}" y1="${oy}" x2="${mid}" y2="${oy + dH}" stroke="#555" stroke-width="2"/>
-        <line x1="${rL}" y1="${rT}" x2="${rR}" y2="${rB}" stroke="#333" stroke-width="0.5"/>
-        <line x1="${rR}" y1="${rT}" x2="${rL}" y2="${rB}" stroke="#333" stroke-width="0.5"/>
-        <rect x="${mid + 3}" y="${oy + dH / 2 - 5}" width="3" height="10" rx="1" fill="#555"/>`;
+        <line x1="${rL}" y1="${rCy}" x2="${rR}" y2="${rT}" stroke="#333" stroke-width="0.5"/>
+        <line x1="${rL}" y1="${rCy}" x2="${rR}" y2="${rB}" stroke="#333" stroke-width="0.5"/>
+        <line x1="${rCx}" y1="${rT}" x2="${rL}" y2="${rB}" stroke="#333" stroke-width="0.5"/>
+        <line x1="${rCx}" y1="${rT}" x2="${rR}" y2="${rB}" stroke="#333" stroke-width="0.5"/>
+        <rect x="${mid + 3}" y="${rCy - 5}" width="3" height="10" rx="1" fill="#555"/>`;
 
     } else if (item.productType === 'door') {
-      // Дверь: 2 секции (верх стекло + низ), X в каждой, ручка слева, петли справа
+      // Дверь: 2 секции (верх+низ), треугольник от ручки (лев. центр всей двери) к правым углам
       const fillD = '#d4b830';
       const topH = iH * 0.62;
       const botY = iy + topH + 2;
       const botH = iH - topH - 2;
+      const doorCy = iy + iH / 2; // центр всей двери — где ручка
       inner = `
         <rect x="${ix}" y="${iy}" width="${iW}" height="${topH}" fill="${fillD}" stroke="#999" stroke-width="0.5"/>
         <rect x="${ix}" y="${botY}" width="${iW}" height="${botH}" fill="${fillD}" stroke="#999" stroke-width="0.5"/>
-        <line x1="${ix}" y1="${iy}" x2="${ix + iW}" y2="${iy + topH}" stroke="#333" stroke-width="0.5"/>
-        <line x1="${ix + iW}" y1="${iy}" x2="${ix}" y2="${iy + topH}" stroke="#333" stroke-width="0.5"/>
-        <line x1="${ix}" y1="${botY}" x2="${ix + iW}" y2="${botY + botH}" stroke="#333" stroke-width="0.5"/>
-        <line x1="${ix + iW}" y1="${botY}" x2="${ix}" y2="${botY + botH}" stroke="#333" stroke-width="0.5"/>
-        <rect x="${ix + 3}" y="${oy + dH / 2 - 5}" width="5" height="2" rx="0.5" fill="#555"/>
+        <line x1="${ix}" y1="${doorCy}" x2="${ix + iW}" y2="${iy}" stroke="#333" stroke-width="0.5"/>
+        <line x1="${ix}" y1="${doorCy}" x2="${ix + iW}" y2="${iy + iH}" stroke="#333" stroke-width="0.5"/>
+        <rect x="${ix + 3}" y="${doorCy - 1}" width="5" height="2" rx="0.5" fill="#555"/>
         <rect x="${ox + dW - fr - 2}" y="${iy + 6}" width="2" height="5" rx="0.5" fill="#888"/>
         <rect x="${ox + dW - fr - 2}" y="${iy + topH - 6}" width="2" height="5" rx="0.5" fill="#888"/>
         <rect x="${ox + dW - fr - 2}" y="${botY + botH - 8}" width="2" height="5" rx="0.5" fill="#888"/>`;
@@ -280,7 +285,7 @@ export default function App() {
         <line x1="${ox}" y1="${splitY}" x2="${ox + dW}" y2="${splitY}" stroke="#555" stroke-width="2"/>`;
 
     } else if (item.productType === 'sliding-balcony') {
-      // Раздвижная лоджия: 4 секции, бирюзовая, ромбы-стрелки → ← → ←
+      // Раздвижная лоджия: 4 секции, бирюзовая, простые встречные стрелки → ← → ←
       const fillS = '#c0f5f5';
       const sec = 4;
       const secW = iW / sec;
@@ -290,24 +295,20 @@ export default function App() {
         panels += `<rect x="${sx + 1}" y="${iy}" width="${secW - 2}" height="${iH}" fill="${fillS}" stroke="#999" stroke-width="0.5"/>`;
       }
       const cy = oy + dH / 2;
-      const s = 7; // размер ромба
+      const a = 4; // размер наконечника стрелки
+      const al = 10; // длина линии стрелки
       let arrows = '';
       for (let i = 0; i < sec; i++) {
         const cx = ix + i * secW + secW / 2;
-        const dir = (i % 2 === 0) ? 1 : -1;
-        // Ромб (контур)
-        arrows += `<polygon points="${cx},${cy - s} ${cx + s},${cy} ${cx},${cy + s} ${cx - s},${cy}" fill="none" stroke="#555" stroke-width="0.7"/>`;
-        // Стрелка внутри ромба
-        arrows += `<polygon points="${cx + dir * 2},${cy - 2} ${cx + dir * 2},${cy + 2} ${cx + dir * 5},${cy}" fill="#555"/>`;
+        const dir = (i % 2 === 0) ? 1 : -1; // → или ←
+        const tip = cx + dir * al;
+        const tail = cx - dir * al;
+        // Линия стрелки
+        arrows += `<line x1="${tail}" y1="${cy}" x2="${tip}" y2="${cy}" stroke="#555" stroke-width="0.8"/>`;
+        // Наконечник
+        arrows += `<polygon points="${tip},${cy} ${tip - dir * a},${cy - a} ${tip - dir * a},${cy + a}" fill="#555"/>`;
       }
-      // Ручки между парами створок
-      const h1x = ix + secW * 1;
-      const h2x = ix + secW * 3;
-      inner = `
-        ${panels}
-        ${arrows}
-        <rect x="${h1x - 1}" y="${cy - 5}" width="2" height="10" rx="0.5" fill="#888"/>
-        <rect x="${h2x - 1}" y="${cy - 5}" width="2" height="10" rx="0.5" fill="#888"/>`;
+      inner = `${panels}${arrows}`;
 
     } else {
       // Глухое окно (по умолчанию)
