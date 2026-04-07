@@ -517,7 +517,7 @@ function DashboardContent({ onLogout }) {
           <div className="header-title-group">
             <h1 className="header-title">
               <span className="header-logo">К+</span>
-              Комфорт+ Дашборд
+              Комфорт+
             </h1>
             <span className="header-subtitle">Панель управления заказами</span>
           </div>

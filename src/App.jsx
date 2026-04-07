@@ -1,7 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from './supabase.js';
 import { LOGO_BASE64 } from './logo.js';
 import './index.css';
+
+// Авто-высота для iframe: сообщаем родительскому сайту при изменении размера
+function useIframeResize() {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => {
+      const height = el.scrollHeight;
+      window.parent.postMessage({ type: 'CALCULATOR_RESIZE', height }, '*');
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  return ref;
+}
 
 const PRODUCT_LABELS = {
   'window': 'Окно',
@@ -445,8 +461,9 @@ export default function App() {
   };
 
   // ============ RENDER ============
+  const containerRef = useIframeResize();
   return (
-    <div className="app-container">
+    <div className="app-container" ref={containerRef}>
       <div className="calculator-card">
         <h1 className="title">Комфорт+</h1>
         <p className="subtitle">Экспресс-калькулятор стоимости заказа</p>
