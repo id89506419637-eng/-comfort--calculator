@@ -1,231 +1,24 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from './supabase.js';
+import useAuth from './dashboard/hooks/useAuth.js';
+import useOrders from './dashboard/hooks/useOrders.js';
+import useTimings from './hooks/useTimings.js';
+import LoginForm from './dashboard/components/LoginForm.jsx';
+import Header from './dashboard/components/Header.jsx';
+import StatsRow from './dashboard/components/StatsRow.jsx';
+import OrderList from './dashboard/components/OrderList.jsx';
+import KanbanBoard from './dashboard/components/KanbanBoard.jsx';
+import AnalyticsPanel from './dashboard/components/AnalyticsPanel.jsx';
+import StatusModal from './dashboard/components/StatusModal.jsx';
+import PasswordModal from './dashboard/components/PasswordModal.jsx';
+import SummaryModal from './dashboard/components/SummaryModal.jsx';
+import PricesPanel from './dashboard/components/PricesPanel.jsx';
+import CalendarPanel from './dashboard/components/CalendarPanel.jsx';
+import MapPanel from './dashboard/components/MapPanel.jsx';
 import './Dashboard.css';
 
-const STATUS_LABELS = {
-  'new': 'Новая',
-  'order': 'Заказ',
-  'rejected': 'Отказ',
-};
-
-const STATUS_COLORS = {
-  'new': { bg: 'rgba(234, 179, 8, 0.15)', text: '#eab308', border: 'rgba(234, 179, 8, 0.3)' },
-  'order': { bg: 'rgba(34, 197, 94, 0.15)', text: '#22c55e', border: 'rgba(34, 197, 94, 0.3)' },
-  'rejected': { bg: 'rgba(239, 68, 68, 0.15)', text: '#ef4444', border: 'rgba(239, 68, 68, 0.3)' },
-};
-
-const PRODUCT_LABELS = {
-  'window': 'Окно',
-  'door': 'Дверь',
-  'partition': 'Перегородка',
-  'sliding-balcony': 'Разд. лоджия',
-};
-
-const PROFILE_LABELS = {
-  'cold-alu': 'Хол. алюминий',
-  'warm-alu': 'Тёпл. алюминий',
-  'pvc': 'ПВХ',
-};
-
-const PERIOD_OPTIONS = [
-  { key: 'today', label: 'Сегодня' },
-  { key: 'week', label: 'Неделя' },
-  { key: 'month', label: 'Месяц' },
-  { key: 'all', label: 'Всё время' },
-  { key: 'custom', label: 'Дата' },
-];
-
-const REJECTION_REASONS = [
-  'Дорого',
-  'Передумал',
-  'Выбрал конкурента',
-  'Не дозвонились',
-  'Не устроили сроки',
-  'Другое',
-];
-
-const ORDER_TAGS = [
-  { key: 'hot', label: 'Горячий', color: '#ef4444' },
-  { key: 'callback', label: 'Перезвонить', color: '#eab308' },
-  { key: 'measurement', label: 'Ожидает замера', color: '#3b82f6' },
-  { key: 'vip', label: 'VIP', color: '#8b5cf6' },
-];
-
-const PIE_COLORS = ['#3b82f6', '#8b5cf6', '#22c55e', '#eab308', '#ef4444', '#ec4899', '#06b6d4'];
-
-function formatDate(dateStr) {
-  const d = new Date(dateStr);
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${String(d.getFullYear()).slice(2)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-function formatMoney(n) {
-  if (n == null) return '—';
-  return n.toLocaleString('ru-RU') + ' ₽';
-}
-
-function getDateRange(period, customDate) {
-  const now = new Date();
-  if (period === 'custom' && customDate) {
-    const start = new Date(customDate + 'T00:00:00');
-    const end = new Date(customDate + 'T23:59:59');
-    return { start: start.toISOString(), end: end.toISOString() };
-  }
-  if (period === 'today') {
-    return { start: new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString(), end: null };
-  }
-  if (period === 'week') {
-    const d = new Date(now);
-    d.setDate(d.getDate() - 7);
-    return { start: d.toISOString(), end: null };
-  }
-  if (period === 'month') {
-    const d = new Date(now);
-    d.setMonth(d.getMonth() - 1);
-    return { start: d.toISOString(), end: null };
-  }
-  return { start: null, end: null };
-}
-
-function groupByDay(orders) {
-  const groups = {};
-  orders.forEach((o) => {
-    const day = o.created_at.slice(0, 10);
-    if (!groups[day]) groups[day] = [];
-    groups[day].push(o);
-  });
-  const sortedKeys = Object.keys(groups).sort();
-  return sortedKeys.map((day) => ({
-    day,
-    label: day.slice(8) + '.' + day.slice(5, 7),
-    orders: groups[day],
-    count: groups[day].length,
-    sum: groups[day].filter((o) => o.status === 'order').reduce((s, o) => s + (o.final_sum ? Number(o.final_sum) : (o.price_max || 0)), 0),
-    orderCount: groups[day].filter((o) => o.status === 'order').length,
-  }));
-}
-
-function itemsSummary(items) {
-  if (!items || !Array.isArray(items)) return '—';
-  const groups = {};
-  items.forEach((it) => {
-    const label = PRODUCT_LABELS[it.productType] || it.productType || '?';
-    const profile = PROFILE_LABELS[it.profileType] || '';
-    const key = `${label} ${profile}`.trim();
-    groups[key] = (groups[key] || 0) + (it.count || 1);
-  });
-  return Object.entries(groups).map(([k, v]) => `${v}× ${k}`).join(', ');
-}
-
-/* ==================== BAR CHART ==================== */
-
-function MiniBarChart({ data, dataKey, color, label, formatValue }) {
-  if (!data || data.length === 0) return <div className="empty-chart">Нет данных</div>;
-
-  const values = data.map((d) => d[dataKey]);
-  const maxVal = Math.max(...values, 1);
-
-  const W = 320;
-  const H = 140;
-  const padX = 40;
-  const padTop = 16;
-  const padBottom = 34;
-  const chartW = W - padX - 8;
-  const chartH = H - padTop - padBottom;
-
-  const barGap = 4;
-  const barW = Math.min(32, (chartW - barGap * (data.length - 1)) / data.length);
-  const totalBarsW = data.length * barW + (data.length - 1) * barGap;
-  const offsetX = padX + (chartW - totalBarsW) / 2;
-
-  const gridLines = 3;
-  const gridVals = Array.from({ length: gridLines }, (_, i) => (maxVal / (gridLines - 1)) * i);
-
-  return (
-    <div className="chart-card">
-      <h3 className="chart-title">{label}</h3>
-      <svg viewBox={`0 0 ${W} ${H}`} className="bar-chart-svg">
-        {gridVals.map((v, i) => {
-          const y = padTop + chartH - (v / maxVal) * chartH;
-          return (
-            <g key={i}>
-              <line x1={padX - 4} y1={y} x2={W - 8} y2={y} stroke="rgba(255,255,255,0.06)" strokeWidth="0.5" />
-              <text x={padX - 6} y={y + 3} textAnchor="end" fill="#6b7280" fontSize="8">
-                {formatValue ? formatValue(v) : Math.round(v)}
-              </text>
-            </g>
-          );
-        })}
-        <defs>
-          <linearGradient id={`bar-grad-${dataKey}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity="1" />
-            <stop offset="100%" stopColor={color} stopOpacity="0.4" />
-          </linearGradient>
-        </defs>
-        {data.map((d, i) => {
-          const barH = maxVal > 0 ? (d[dataKey] / maxVal) * chartH : 0;
-          const x = offsetX + i * (barW + barGap);
-          const y = padTop + chartH - barH;
-          return (
-            <g key={i}>
-              <rect x={x} y={y} width={barW} height={barH} rx={2} fill={`url(#bar-grad-${dataKey})`} />
-              <text x={x + barW / 2} y={y - 6} textAnchor="middle" fill="#e5e7eb" fontSize="9" fontWeight="600">
-                {formatValue ? formatValue(d[dataKey]) : d[dataKey]}
-              </text>
-              {data.length <= 31 && (
-                <text
-                  x={x + barW / 2}
-                  y={padTop + chartH + 6}
-                  textAnchor="end"
-                  fill="#6b7280"
-                  fontSize="8"
-                  transform={`rotate(-45, ${x + barW / 2}, ${padTop + chartH + 6})`}
-                >
-                  {d.label}
-                </text>
-              )}
-            </g>
-          );
-        })}
-      </svg>
-    </div>
-  );
-}
-
-/* ==================== MAIN COMPONENT ==================== */
-
 export default function Dashboard() {
-  const [session, setSession] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [loginError, setLoginError] = useState('');
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s);
-      setAuthLoading(false);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoginError('');
-    const { error } = await supabase.auth.signInWithPassword({
-      email: loginEmail,
-      password: loginPassword,
-    });
-    if (error) setLoginError('Неверный логин или пароль');
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setSession(null);
-  };
+  const { session, loading: authLoading, signIn, signOut, changePassword } = useAuth();
 
   if (authLoading) {
     return (
@@ -236,183 +29,44 @@ export default function Dashboard() {
   }
 
   if (!session) {
-    return (
-      <div className="dashboard" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-        <form onSubmit={handleLogin} className="login-form">
-          <h2 style={{ textAlign: 'center', marginBottom: '0.5rem', color: '#e5e7eb' }}>Комфорт+</h2>
-          <p style={{ textAlign: 'center', marginBottom: '1.5rem', color: '#9ca3af', fontSize: '0.875rem' }}>Войдите для доступа к заявкам</p>
-          <input
-            type="email"
-            placeholder="Email"
-            value={loginEmail}
-            onChange={(e) => setLoginEmail(e.target.value)}
-            required
-            className="login-input"
-          />
-          <input
-            type="password"
-            placeholder="Пароль"
-            value={loginPassword}
-            onChange={(e) => setLoginPassword(e.target.value)}
-            required
-            className="login-input"
-          />
-          {loginError && <p style={{ color: '#ef4444', fontSize: '0.875rem', margin: '0 0 0.75rem' }}>{loginError}</p>}
-          <button type="submit" className="login-btn">Войти</button>
-        </form>
-      </div>
-    );
+    return <LoginForm onLogin={signIn} />;
   }
 
-  return <DashboardContent onLogout={handleLogout} />;
+  return <DashboardContent onLogout={signOut} onChangePassword={changePassword} />;
 }
 
-function DashboardContent({ onLogout }) {
-  const [orders, setOrders] = useState([]);
+function DashboardContent({ onLogout, onChangePassword }) {
   const [period, setPeriod] = useState('all');
   const [customDate, setCustomDate] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
   const [showSummary, setShowSummary] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [newPassword, setNewPassword] = useState('');
-  const [passwordMsg, setPasswordMsg] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [openDropdown, setOpenDropdown] = useState(null);
-  const [modal, setModal] = useState(null); // { type: 'order'|'rejected', orderId }
-  const [modalData, setModalData] = useState({});
-  const dropdownRef = useRef(null);
+  const [showPrices, setShowPrices] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [showMap, setShowMap] = useState(false);
+  const [viewMode, setViewMode] = useState('list'); // 'list' | 'kanban'
+  const { timings } = useTimings();
 
-  const fetchOrders = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
-    let query = supabase.from('orders').select('*').neq('archived', true).order('created_at', { ascending: false });
-    const { start, end } = getDateRange(period, customDate);
-    if (start) query = query.gte('created_at', start);
-    if (end) query = query.lte('created_at', end);
-    const { data, error } = await query;
-    if (error) {
-      console.error('Ошибка загрузки данных');
-      if (!silent) setOrders([]);
-    } else {
-      setOrders(data || []);
-    }
-    if (!silent) setLoading(false);
-  }, [period, customDate]);
+  const {
+    orders, loading,
+    searchQuery, setSearchQuery,
+    statusFilter, setStatusFilter,
+    openDropdown, setOpenDropdown, dropdownRef,
+    modal, setModal, modalData, setModalData,
+    handleStatusChange, submitModal,
+    archiveOrder, toggleTag,
+  } = useOrders(period, customDate);
 
-  useEffect(() => { fetchOrders(); }, [fetchOrders]);
-
-  useEffect(() => {
-    const interval = setInterval(() => fetchOrders(true), 30000);
-    return () => clearInterval(interval);
-  }, [fetchOrders]);
-
-  useEffect(() => {
-    const handleClick = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setOpenDropdown(null);
-      }
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
-
-  const handleStatusChange = (id, newStatus) => {
-    setOpenDropdown(null);
-    if (newStatus === 'order') {
-      const existing = orders.find((o) => o.id === id);
-      setModalData({
-        final_sum: existing?.final_sum || '',
-        address: existing?.address || '',
-        install_date: existing?.install_date || '',
-        comment: existing?.order_comment || '',
-      });
-      setModal({ type: 'order', orderId: id });
-    } else if (newStatus === 'rejected') {
-      const existing = orders.find((o) => o.id === id);
-      setModalData({
-        rejection_reason: existing?.rejection_reason || '',
-        comment: existing?.order_comment || '',
-      });
-      setModal({ type: 'rejected', orderId: id });
-    } else {
-      updateStatus(id, newStatus, {});
-    }
-  };
-
-  const updateStatus = async (id, newStatus, extraData = {}) => {
-    const { error } = await supabase.from('orders').update({ status: newStatus, ...extraData }).eq('id', id);
-    if (!error) {
-      setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status: newStatus, ...extraData } : o)));
-    }
-    setModal(null);
-    setModalData({});
-  };
-
-  const submitModal = () => {
-    if (!modal) return;
-    if (modal.type === 'order') {
-      updateStatus(modal.orderId, 'order', {
-        final_sum: modalData.final_sum ? Number(modalData.final_sum) : null,
-        address: modalData.address || null,
-        install_date: modalData.install_date || null,
-        order_comment: modalData.comment || null,
-      });
-    } else if (modal.type === 'rejected') {
-      if (!modalData.rejection_reason) {
-        alert('Выберите причину отказа');
-        return;
-      }
-      updateStatus(modal.orderId, 'rejected', {
-        rejection_reason: modalData.rejection_reason || null,
-        order_comment: modalData.comment || null,
-      });
-    }
-  };
-
-  const archiveOrder = async (id) => {
-    if (!window.confirm('Архивировать эту заявку?')) return;
-    const { error } = await supabase.from('orders').update({ archived: true }).eq('id', id);
-    if (!error) {
-      setOrders((prev) => prev.filter((o) => o.id !== id));
-    }
-  };
-
-  const toggleTag = async (id, tagKey) => {
-    const order = orders.find((o) => o.id === id);
-    const current = (order?.tag || '').split(',').filter(Boolean);
-    const updated = current.includes(tagKey)
-      ? current.filter((t) => t !== tagKey)
-      : [...current, tagKey];
-    const newTag = updated.join(',') || null;
-    const { error } = await supabase.from('orders').update({ tag: newTag }).eq('id', id);
-    if (!error) {
-      setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, tag: newTag } : o)));
-    }
-  };
-
-  /* -------- filtered orders -------- */
-  const filteredOrders = orders.filter((o) => {
-    if (statusFilter !== 'all' && o.status !== statusFilter) return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      const name = (o.client_name || '').toLowerCase();
-      const phone = (o.client_phone || '').toLowerCase();
-      const company = (o.client_company || '').toLowerCase();
-      const composition = itemsSummary(o.items).toLowerCase();
-      if (!name.includes(q) && !phone.includes(q) && !company.includes(q) && !composition.includes(q)) return false;
-    }
-    return true;
-  });
-
-  /* -------- stats -------- */
+  /* stats — "заказ" = всё кроме new и rejected */
   const totalCount = orders.length;
-  const orderItems = orders.filter((o) => o.status === 'order');
+  const orderItems = orders.filter((o) => o.status !== 'new' && o.status !== 'rejected');
+  const rejectedCount = orders.filter((o) => o.status === 'rejected').length;
   const orderSum = orderItems.reduce((s, o) => s + (o.final_sum ? Number(o.final_sum) : (o.price_max || 0)), 0);
   const conversion = totalCount > 0 ? ((orderItems.length / totalCount) * 100).toFixed(1) : '0';
   const avgCheck = orderItems.length > 0 ? Math.round(orderSum / orderItems.length) : 0;
 
-  /* -------- conversion trend -------- */
-  const calcPrevConversion = () => {
+  /* conversion trend */
+  const [prevConversion, setPrevConversion] = useState(null);
+  useEffect(() => {
     const now = new Date();
     let prevStart, prevEnd;
     if (period === 'today') {
@@ -430,663 +84,118 @@ function DashboardContent({ onLogout }) {
       prevStart = new Date(prevEnd);
       prevStart.setMonth(prevStart.getMonth() - 1);
     } else {
-      return null;
+      setPrevConversion(null);
+      return;
     }
-    return { start: prevStart.toISOString(), end: prevEnd.toISOString() };
-  };
-
-  const [prevConversion, setPrevConversion] = useState(null);
-  useEffect(() => {
-    const range = calcPrevConversion();
-    if (!range) { setPrevConversion(null); return; }
-    supabase.from('orders').select('status').gte('created_at', range.start).lte('created_at', range.end).neq('archived', true)
+    supabase.from('orders').select('status').gte('created_at', prevStart.toISOString()).lte('created_at', prevEnd.toISOString()).neq('archived', true)
       .then(({ data }) => {
         if (!data || data.length === 0) { setPrevConversion(null); return; }
-        const prevOrderCount = data.filter((o) => o.status === 'order').length;
+        const prevOrderCount = data.filter((o) => o.status !== 'new' && o.status !== 'rejected').length;
         setPrevConversion(((prevOrderCount / data.length) * 100).toFixed(1));
       });
   }, [period, orders.length]);
 
   const conversionDiff = prevConversion !== null ? (parseFloat(conversion) - parseFloat(prevConversion)).toFixed(1) : null;
 
-  /* -------- charts data -------- */
-  const productCounts = {};
-  const profileCounts = {};
-  orders.filter((o) => o.status === 'order').forEach((o) => {
-    if (!o.items || !Array.isArray(o.items)) return;
-    o.items.forEach((it) => {
-      const pLabel = PRODUCT_LABELS[it.productType] || it.productType || '?';
-      productCounts[pLabel] = (productCounts[pLabel] || 0) + (it.count || 1);
-      let prLabel = PROFILE_LABELS[it.profileType] || it.profileType || '?';
-      if (it.profileType === 'pvc') {
-        prLabel = it.chambers === '5' ? 'ПВХ 5-кам.' : 'ПВХ 3-кам.';
-      }
-      profileCounts[prLabel] = (profileCounts[prLabel] || 0) + (it.count || 1);
-    });
-  });
+  if (showPrices) {
+    return <PricesPanel onBack={() => setShowPrices(false)} />;
+  }
 
-  const productTotal = Object.values(productCounts).reduce((a, b) => a + b, 0) || 1;
-  const profileTotal = Object.values(profileCounts).reduce((a, b) => a + b, 0) || 1;
+  if (showCalendar) {
+    return (
+      <div className="dashboard">
+        <CalendarPanel orders={orders} onBack={() => setShowCalendar(false)} />
+      </div>
+    );
+  }
 
-  /* dynamics data */
-  const dailyData = groupByDay(orders);
-  const dailyWithConversion = dailyData.map((d) => ({
-    ...d,
-    conversion: d.count > 0 ? Math.round((d.orderCount / d.count) * 100) : 0,
-  }));
-
-  /* funnel */
-  const funnelSteps = [
-    { key: 'new', label: 'Новые', color: '#eab308' },
-    { key: 'order', label: 'Заказ', color: '#22c55e' },
-    { key: 'rejected', label: 'Отказ', color: '#ef4444' },
-  ];
-  const funnelCounts = {};
-  funnelSteps.forEach((s) => {
-    funnelCounts[s.key] = orders.filter((o) => o.status === s.key).length;
-  });
-  const funnelMax = Math.max(...Object.values(funnelCounts), 1);
-
-  /* -------- pie chart SVG -------- */
-  const pieEntries = Object.entries(productCounts);
-  let cumAngle = 0;
-  const pieSlices = pieEntries.map(([label, count], i) => {
-    const pct = count / productTotal;
-    const startAngle = cumAngle;
-    cumAngle += pct * 360;
-    const endAngle = cumAngle;
-    return { label, count, pct, startAngle, endAngle, color: PIE_COLORS[i % PIE_COLORS.length] };
-  });
-
-  function describeArc(cx, cy, r, startAngle, endAngle) {
-    const rad = (a) => ((a - 90) * Math.PI) / 180;
-    const x1 = cx + r * Math.cos(rad(startAngle));
-    const y1 = cy + r * Math.sin(rad(startAngle));
-    const x2 = cx + r * Math.cos(rad(endAngle));
-    const y2 = cy + r * Math.sin(rad(endAngle));
-    const large = endAngle - startAngle > 180 ? 1 : 0;
-    return `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} Z`;
+  if (showMap) {
+    return (
+      <div className="dashboard">
+        <MapPanel orders={orders} onBack={() => setShowMap(false)} />
+      </div>
+    );
   }
 
   return (
     <div className="dashboard">
-      {/* TOP BAR */}
-      <header className="dashboard-header">
-        <div className="header-left">
-          <a href="#" className="back-link">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12 15L7 10L12 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            Назад к калькулятору
-          </a>
-          <div className="header-title-group">
-            <h1 className="header-title">
-              <span className="header-logo">К+</span>
-              Комфорт+
-            </h1>
-            <span className="header-subtitle">Панель управления заказами</span>
-          </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div className="period-selector">
-            {PERIOD_OPTIONS.map((p) => (
-              p.key === 'custom' ? (
-                <div key={p.key} className="custom-date-wrapper">
-                  <button
-                    className={`period-btn ${period === 'custom' ? 'active' : ''}`}
-                    onClick={() => {
-                      const input = document.getElementById('dashboard-date-picker');
-                      if (input) input.showPicker();
-                    }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ marginRight: 4 }}>
-                      <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2"/>
-                      <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                    </svg>
-                    {period === 'custom' && customDate
-                      ? customDate.slice(5).replace('-', '.')
-                      : p.label}
-                  </button>
-                  <input
-                    id="dashboard-date-picker"
-                    type="date"
-                    className="hidden-date-input"
-                    value={customDate}
-                    onChange={(e) => {
-                      setCustomDate(e.target.value);
-                      setPeriod('custom');
-                    }}
-                  />
-                </div>
-              ) : (
-                <button
-                  key={p.key}
-                  className={`period-btn ${period === p.key ? 'active' : ''}`}
-                  onClick={() => setPeriod(p.key)}
-                >
-                  {p.label}
-                </button>
-              )
-            ))}
-          </div>
-          <button onClick={() => setShowSummary(true)} className="summary-btn">Итоги</button>
-          <button onClick={() => { setShowPassword(true); setNewPassword(''); setPasswordMsg(''); }} className="password-btn" title="Сменить пароль">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" strokeWidth="2"/><path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
-          </button>
-          <button onClick={onLogout} className="logout-btn">Выйти</button>
-        </div>
-      </header>
+      <Header
+        period={period}
+        setPeriod={setPeriod}
+        customDate={customDate}
+        setCustomDate={setCustomDate}
+        onShowSummary={() => setShowSummary(true)}
+        onShowPrices={() => setShowPrices(true)}
+        onShowCalendar={() => setShowCalendar(true)}
+        onShowMap={() => setShowMap(true)}
+        onShowPassword={() => setShowPassword(true)}
+        onLogout={onLogout}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+      />
 
-      {/* STATS ROW */}
-      <div className="stats-row">
-        <div className="stat-card">
-          <div className="stat-icon stat-icon-blue">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 5h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          </div>
-          <div className="stat-content">
-            <span className="stat-label">Заявок / Заказов / Отказов</span>
-            <span className="stat-value">{totalCount.toLocaleString('ru-RU')} / <span style={{ color: '#22c55e' }}>{orderItems.length}</span> / <span style={{ color: '#ef4444' }}>{orders.filter((o) => o.status === 'rejected').length}</span></span>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon stat-icon-green">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          </div>
-          <div className="stat-content">
-            <span className="stat-label">Сумма заказов</span>
-            <span className="stat-value">{formatMoney(orderSum)}</span>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon stat-icon-purple">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M22 12h-4l-3 9L9 3l-3 9H2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          </div>
-          <div className="stat-content">
-            <span className="stat-label">Конверсия</span>
-            <span className="stat-value">
-              {conversion}%
-              {conversionDiff !== null && (
-                <span className={`trend ${parseFloat(conversionDiff) >= 0 ? 'trend-up' : 'trend-down'}`}>
-                  {parseFloat(conversionDiff) >= 0 ? '▲' : '▼'} {Math.abs(parseFloat(conversionDiff))}%
-                </span>
-              )}
-            </span>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon stat-icon-amber">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/><path d="M12 6v6l4 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          </div>
-          <div className="stat-content">
-            <span className="stat-label">Средний чек</span>
-            <span className="stat-value">{formatMoney(avgCheck)}</span>
-          </div>
-        </div>
+      <StatsRow
+        totalCount={totalCount}
+        orderCount={orderItems.length}
+        rejectedCount={rejectedCount}
+        orderSum={orderSum}
+        conversion={conversion}
+        conversionDiff={conversionDiff}
+        avgCheck={avgCheck}
+      />
+
+      <div className={`dashboard-main ${viewMode === 'kanban' ? 'view-kanban' : 'view-list'}`}>
+        {viewMode === 'list' ? (
+          <OrderList
+            orders={orders}
+            loading={loading}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
+            openDropdown={openDropdown}
+            setOpenDropdown={setOpenDropdown}
+            dropdownRef={dropdownRef}
+            onStatusChange={handleStatusChange}
+            onArchive={archiveOrder}
+            onToggleTag={toggleTag}
+            timings={timings}
+          />
+        ) : (
+          <KanbanBoard
+            orders={orders}
+            onStatusChange={handleStatusChange}
+            onArchive={archiveOrder}
+            onToggleTag={toggleTag}
+            timings={timings}
+          />
+        )}
+
+        {viewMode === 'list' && <AnalyticsPanel orders={orders} />}
       </div>
 
-      {/* MAIN CONTENT */}
-      <div className="dashboard-main">
-        {/* LEFT: ORDERS TABLE */}
-        <div className="orders-panel">
-          <div className="search-bar">
-            <div className="search-input-wrapper">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="search-icon">
-                <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2"/>
-                <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-              </svg>
-              <input
-                type="text"
-                className="search-input"
-                placeholder="Поиск по имени, телефону..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            <div className="status-filter">
-              <button className={`filter-btn ${statusFilter === 'all' ? 'active' : ''}`} onClick={() => setStatusFilter('all')}>Все</button>
-              {Object.entries(STATUS_LABELS).map(([key, label]) => (
-                <button
-                  key={key}
-                  className={`filter-btn ${statusFilter === key ? 'active' : ''}`}
-                  style={statusFilter === key ? { background: STATUS_COLORS[key]?.bg, color: STATUS_COLORS[key]?.text, borderColor: STATUS_COLORS[key]?.border } : {}}
-                  onClick={() => setStatusFilter(key)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
+      <StatusModal
+        modal={modal}
+        modalData={modalData}
+        setModalData={setModalData}
+        onSubmit={submitModal}
+        onClose={() => setModal(null)}
+      />
 
-          {loading ? (
-            <div className="loading-state">
-              <div className="spinner" />
-              <span>Загрузка данных...</span>
-            </div>
-          ) : filteredOrders.length === 0 ? (
-            <div className="empty-state">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" stroke="#4b5563" strokeWidth="1.5"/><path d="M9 5a2 2 0 012-2h2a2 2 0 012 2M9 5h6" stroke="#4b5563" strokeWidth="1.5"/></svg>
-              <span>Нет заявок за выбранный период</span>
-            </div>
-          ) : (
-            <div className="orders-list">
-              {filteredOrders.map((order) => {
-                const sc = STATUS_COLORS[order.status] || STATUS_COLORS['new'];
-                return (
-                  <div key={order.id} className="order-row">
-                    <div className="order-top">
-                      <div className="order-info">
-                        <span className="order-date">{formatDate(order.created_at)}</span>
-                        <span className="order-client">{order.client_name || 'Без имени'}</span>
-                        {order.client_phone && (
-                          <span className="order-company"><a href={`tel:${order.client_phone}`} style={{ color: '#93c5fd', textDecoration: 'none' }}>{order.client_phone}</a></span>
-                        )}
-                        {order.client_company && (
-                          <span className="order-company">{order.client_company}</span>
-                        )}
-                      </div>
-                      <div className="order-right">
-                        <span className={`order-price ${order.final_sum ? 'order-price-final' : ''}`}>
-                          {order.final_sum
-                            ? `${Number(order.final_sum).toLocaleString('ru-RU')} ₽`
-                            : order.price_min != null && order.price_max != null
-                              ? `${order.price_min.toLocaleString('ru-RU')} — ${order.price_max.toLocaleString('ru-RU')} ₽`
-                              : '—'}
-                        </span>
-                        <div className="status-wrapper" ref={openDropdown === order.id ? dropdownRef : null}>
-                          <button
-                            className="status-badge"
-                            style={{
-                              background: sc.bg,
-                              color: sc.text,
-                              border: `1px solid ${sc.border}`,
-                            }}
-                            onClick={() => setOpenDropdown(openDropdown === order.id ? null : order.id)}
-                          >
-                            {STATUS_LABELS[order.status] || order.status}
-                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ marginLeft: 4 }}><path d="M3 5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                          </button>
-                          {openDropdown === order.id && (
-                            <div className="status-dropdown">
-                              {Object.entries(STATUS_LABELS).map(([key, label]) => (
-                                <button
-                                  key={key}
-                                  className={`dropdown-item ${key === order.status ? 'current' : ''}`}
-                                  style={{ color: STATUS_COLORS[key]?.text }}
-                                  onClick={() => handleStatusChange(order.id, key)}
-                                >
-                                  <span
-                                    className="dropdown-dot"
-                                    style={{ background: STATUS_COLORS[key]?.text }}
-                                  />
-                                  {label}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="order-bottom">
-                      <div className="order-items">
-                        {itemsSummary(order.items)}
-                        {order.address && (
-                          <span className="order-address"> | {order.address}</span>
-                        )}
-                        {order.install_date && (
-                          <span className="order-install-date"> | Монтаж: {order.install_date.slice(8)}.{order.install_date.slice(5,7)}.{order.install_date.slice(0,4)}</span>
-                        )}
-                        {order.order_comment && (
-                          <span className="order-comment-text"> | {order.order_comment}</span>
-                        )}
-                        {order.rejection_reason && (
-                          <span className="order-rejection"> | Причина: {order.rejection_reason}</span>
-                        )}
-                      </div>
-                      <div className="order-actions">
-                        <div className="tag-selector">
-                          {ORDER_TAGS.map((t) => {
-                            const tags = (order.tag || '').split(',');
-                            const isActive = tags.includes(t.key);
-                            return (
-                              <button
-                                key={t.key}
-                                className={`tag-btn ${isActive ? 'active' : ''}`}
-                                style={isActive ? { background: t.color + '22', color: t.color, borderColor: t.color + '44' } : {}}
-                                onClick={() => toggleTag(order.id, t.key)}
-                                title={t.label}
-                              >
-                                {t.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <button className="delete-btn" onClick={() => archiveOrder(order.id)} title="Архивировать">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                            <path d="M5 8l2 12a2 2 0 002 2h6a2 2 0 002-2l2-12M3 5h18M9 5V3h6v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* RIGHT: ANALYTICS */}
-        <div className="analytics-panel">
-          {/* DYNAMICS CHARTS */}
-          {dailyWithConversion.length > 0 && (
-            <>
-              <MiniBarChart
-                data={dailyWithConversion}
-                dataKey="count"
-                color="#3b82f6"
-                label="Динамика заявок"
-              />
-              <MiniBarChart
-                data={dailyWithConversion}
-                dataKey="sum"
-                color="#22c55e"
-                label="Динамика сумм"
-                formatValue={(v) => v >= 1000000 ? (v / 1000000).toFixed(3) + ' млн' : Math.round(v / 1000) + ' тыс'}
-              />
-              <MiniBarChart
-                data={dailyWithConversion}
-                dataKey="conversion"
-                color="#8b5cf6"
-                label="Конверсия, %"
-                formatValue={(v) => Math.round(v) + '%'}
-              />
-            </>
-          )}
-
-          {/* PIE CHART */}
-          {pieSlices.length > 0 && (
-            <div className="chart-card">
-              <h3 className="chart-title">Типы продукции</h3>
-              <div className="pie-container">
-                <svg viewBox="0 0 200 200" className="pie-svg">
-                  {pieSlices.map((s, i) => {
-                    if (pieSlices.length === 1) {
-                      return <circle key={i} cx="100" cy="100" r="80" fill={s.color} />;
-                    }
-                    return (
-                      <path
-                        key={i}
-                        d={describeArc(100, 100, 80, s.startAngle, s.endAngle)}
-                        fill={s.color}
-                        stroke="#1f2937"
-                        strokeWidth="2"
-                      />
-                    );
-                  })}
-                  <circle cx="100" cy="100" r="45" fill="#1f2937" />
-                  <text x="100" y="95" textAnchor="middle" fill="#e5e7eb" fontSize="20" fontWeight="700">
-                    {productTotal}
-                  </text>
-                  <text x="100" y="115" textAnchor="middle" fill="#9ca3af" fontSize="11">
-                    шт.
-                  </text>
-                </svg>
-                <div className="pie-legend">
-                  {pieSlices.map((s, i) => (
-                    <div key={i} className="legend-item">
-                      <span className="legend-dot" style={{ background: s.color }} />
-                      <span className="legend-label">{s.label}</span>
-                      <span className="legend-value">{s.count} шт.</span>
-                      <span className="legend-pct">{(s.pct * 100).toFixed(0)}%</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* PROFILE BARS */}
-          {Object.keys(profileCounts).length > 0 && (
-            <div className="chart-card">
-              <h3 className="chart-title">Типы профиля <span style={{ fontSize: '11px', color: '#6b7280', fontWeight: 400 }}>(кол-во изделий)</span></h3>
-              <div className="profile-bars">
-                {Object.entries(profileCounts)
-                  .sort((a, b) => b[1] - a[1])
-                  .map(([label, count], i) => (
-                    <div key={label} className="bar-row">
-                      <div className="bar-label-row">
-                        <span className="bar-label">{label}</span>
-                        <span className="bar-value">{count} изд.</span>
-                      </div>
-                      <div className="bar-track">
-                        <div
-                          className="bar-fill"
-                          style={{
-                            width: `${(count / profileTotal) * 100}%`,
-                            background: PIE_COLORS[i % PIE_COLORS.length],
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          )}
-
-          {/* FUNNEL */}
-          <div className="chart-card">
-            <h3 className="chart-title">Воронка продаж</h3>
-            <div className="funnel">
-              {funnelSteps.map((step, i) => {
-                const count = funnelCounts[step.key] || 0;
-                const widthPct = funnelMax > 0 ? Math.max((count / funnelMax) * 100, 8) : 8;
-                return (
-                  <div key={step.key} className="funnel-step">
-                    <div className="funnel-label-row">
-                      <span className="funnel-label">{step.label}</span>
-                      <span className="funnel-count" style={{ color: step.color }}>{count}</span>
-                    </div>
-                    <div className="funnel-bar-wrap">
-                      <div
-                        className="funnel-bar"
-                        style={{
-                          width: `${widthPct}%`,
-                          background: `linear-gradient(90deg, ${step.color}, ${step.color}88)`,
-                        }}
-                      />
-                    </div>
-                    {i < funnelSteps.length - 1 && (
-                      <div className="funnel-arrow">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                          <path d="M8 3v10M5 10l3 3 3-3" stroke="#4b5563" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* MODAL: ORDER */}
-      {modal && modal.type === 'order' && (
-        <div className="modal-overlay" onClick={() => setModal(null)}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-            <h3 className="modal-title">Оформление заказа</h3>
-            <div className="modal-field">
-              <label>Итоговая сумма (₽)</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                placeholder="Точная сумма заказа"
-                value={modalData.final_sum || ''}
-                onChange={(e) => setModalData({ ...modalData, final_sum: e.target.value })}
-              />
-            </div>
-            <div className="modal-field">
-              <label>Адрес объекта</label>
-              <input
-                type="text"
-                placeholder="Город, улица, дом, кв."
-                value={modalData.address || ''}
-                onChange={(e) => setModalData({ ...modalData, address: e.target.value })}
-              />
-            </div>
-            <div className="modal-field">
-              <label>Дата монтажа</label>
-              <input
-                type="date"
-                value={modalData.install_date || ''}
-                onChange={(e) => setModalData({ ...modalData, install_date: e.target.value })}
-              />
-            </div>
-            <div className="modal-field">
-              <label>Комментарий</label>
-              <textarea
-                placeholder="Доп. информация по заказу"
-                value={modalData.comment || ''}
-                onChange={(e) => setModalData({ ...modalData, comment: e.target.value })}
-                rows={3}
-              />
-            </div>
-            <div className="modal-buttons">
-              <button className="modal-btn-cancel" onClick={() => setModal(null)}>Отмена</button>
-              <button className="modal-btn-confirm" onClick={submitModal}>Подтвердить заказ</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: REJECTED */}
-      {modal && modal.type === 'rejected' && (
-        <div className="modal-overlay" onClick={() => setModal(null)}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-            <h3 className="modal-title">Причина отказа</h3>
-            <div className="modal-field">
-              <label>Причина</label>
-              <div className="reason-buttons">
-                {REJECTION_REASONS.map((r) => (
-                  <button
-                    key={r}
-                    className={`reason-btn ${modalData.rejection_reason === r ? 'active' : ''}`}
-                    onClick={() => setModalData({ ...modalData, rejection_reason: r })}
-                  >
-                    {r}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="modal-field">
-              <label>Комментарий</label>
-              <textarea
-                placeholder="Доп. информация"
-                value={modalData.comment || ''}
-                onChange={(e) => setModalData({ ...modalData, comment: e.target.value })}
-                rows={2}
-              />
-            </div>
-            <div className="modal-buttons">
-              <button className="modal-btn-cancel" onClick={() => setModal(null)}>Отмена</button>
-              <button className="modal-btn-reject" onClick={submitModal}>Отказ</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: CHANGE PASSWORD */}
       {showPassword && (
-        <div className="modal-overlay" onClick={() => setShowPassword(false)}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-            <h3 className="modal-title">Сменить пароль</h3>
-            <div className="modal-field">
-              <label>Новый пароль (минимум 6 символов)</label>
-              <input
-                type="password"
-                placeholder="Введите новый пароль"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-              />
-            </div>
-            {passwordMsg && (
-              <p style={{ fontSize: '13px', margin: '0 0 12px', color: passwordMsg.includes('успешно') ? '#22c55e' : '#ef4444' }}>{passwordMsg}</p>
-            )}
-            <div className="modal-buttons">
-              <button className="modal-btn-cancel" onClick={() => setShowPassword(false)}>Отмена</button>
-              <button className="modal-btn-confirm" onClick={async () => {
-                if (newPassword.length < 6) {
-                  setPasswordMsg('Пароль должен быть минимум 6 символов');
-                  return;
-                }
-                const { error } = await supabase.auth.updateUser({ password: newPassword });
-                if (error) {
-                  setPasswordMsg('Ошибка смены пароля. Попробуйте ещё раз.');
-                } else {
-                  setPasswordMsg('Пароль успешно изменён!');
-                  setNewPassword('');
-                  setTimeout(() => setShowPassword(false), 1500);
-                }
-              }}>Сменить</button>
-            </div>
-          </div>
-        </div>
+        <PasswordModal
+          onChangePassword={onChangePassword}
+          onClose={() => setShowPassword(false)}
+        />
       )}
 
-      {/* MODAL: SUMMARY */}
-      {showSummary && (() => {
-        const rejectedOrders = orders.filter((o) => o.status === 'rejected');
-        const reasonCounts = {};
-        rejectedOrders.forEach((o) => {
-          const r = o.rejection_reason || 'Не указана';
-          reasonCounts[r] = (reasonCounts[r] || 0) + 1;
-        });
-        const sortedReasons = Object.entries(reasonCounts).sort((a, b) => b[1] - a[1]);
-
-        const prodCounts = {};
-        orderItems.forEach((o) => {
-          if (!o.items || !Array.isArray(o.items)) return;
-          o.items.forEach((it) => {
-            const label = PRODUCT_LABELS[it.productType] || it.productType || '?';
-            prodCounts[label] = (prodCounts[label] || 0) + (it.count || 1);
-          });
-        });
-        const sortedProds = Object.entries(prodCounts).sort((a, b) => b[1] - a[1]);
-
-        const periodLabel = PERIOD_OPTIONS.find((p) => p.key === period)?.label || 'Всё время';
-
-        return (
-          <div className="modal-overlay" onClick={() => setShowSummary(false)}>
-            <div className="modal-box summary-modal" onClick={(e) => e.stopPropagation()}>
-              <h3 className="modal-title">Итоги: {periodLabel}</h3>
-              <div className="summary-chips">
-                <span className="summary-chip">Заявок <b>{totalCount}</b></span>
-                <span className="summary-chip">Заказов <b style={{ color: '#22c55e' }}>{orderItems.length}</b></span>
-                <span className="summary-chip">Отказов <b style={{ color: '#ef4444' }}>{rejectedOrders.length}</b></span>
-                <span className="summary-chip">Сумма <b>{formatMoney(orderSum)}</b></span>
-                <span className="summary-chip">Ср. чек <b>{formatMoney(avgCheck)}</b></span>
-                <span className="summary-chip">Конверсия <b>{conversion}%</b></span>
-              </div>
-              {sortedProds.length > 0 && (
-                <div className="summary-section">
-                  <span className="summary-section-title">Продукция:</span>
-                  {sortedProds.map(([label, count]) => (
-                    <span key={label} className="summary-chip">{label} <b>{count} шт.</b></span>
-                  ))}
-                </div>
-              )}
-              {sortedReasons.length > 0 && (
-                <div className="summary-section">
-                  <span className="summary-section-title">Причины отказов:</span>
-                  {sortedReasons.map(([reason, count]) => (
-                    <span key={reason} className="summary-chip chip-red">{reason} <b>{count}</b></span>
-                  ))}
-                </div>
-              )}
-              <div className="modal-buttons">
-                <button className="modal-btn-cancel" onClick={() => setShowSummary(false)}>Закрыть</button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+      {showSummary && (
+        <SummaryModal
+          orders={orders}
+          period={period}
+          onClose={() => setShowSummary(false)}
+        />
+      )}
     </div>
   );
 }

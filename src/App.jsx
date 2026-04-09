@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from './supabase.js';
 import { LOGO_BASE64 } from './logo.js';
+import usePrices from './hooks/usePrices.js';
 import './index.css';
 
 // Авто-высота для iframe: сообщаем родительскому сайту при изменении размера
@@ -33,6 +34,8 @@ const PROFILE_LABELS = {
 };
 
 export default function App() {
+  const { prices, loading: pricesLoading } = usePrices();
+
   const [items, setItems] = useState([
     { id: Date.now(), productType: 'window', profileType: 'cold-alu', chambers: '3', windowType: 'deaf', width: '', height: '', count: '', needsRAL: false, needsTinting: false }
   ]);
@@ -92,24 +95,24 @@ export default function App() {
 
     let basePricePerSqM = 0;
     if (item.profileType === 'cold-alu') {
-      basePricePerSqM = item.productType === 'partition' ? 10000 : 19000;
+      basePricePerSqM = item.productType === 'partition' ? prices.cold_alu_partition : prices.cold_alu_default;
     } else if (item.profileType === 'warm-alu') {
-      basePricePerSqM = 44500;
+      basePricePerSqM = prices.warm_alu;
     } else if (item.profileType === 'pvc') {
       if (item.chambers === '3') {
-        basePricePerSqM = item.windowType === 'deaf' ? 5800 : 8600;
+        basePricePerSqM = item.windowType === 'deaf' ? prices.pvc_3_deaf : prices.pvc_3_open;
       } else {
-        basePricePerSqM = item.windowType === 'deaf' ? 6500 : 10300;
+        basePricePerSqM = item.windowType === 'deaf' ? prices.pvc_5_deaf : prices.pvc_5_open;
       }
     }
 
     let itemBaseCost = itemTotalArea * basePricePerSqM;
 
     if (item.needsRAL && (item.profileType === 'cold-alu' || item.profileType === 'warm-alu')) {
-      itemBaseCost *= 1.1;
+      itemBaseCost *= prices.ral_multiplier;
     }
     if (item.needsTinting) {
-      itemBaseCost += itemTotalArea * 2310;
+      itemBaseCost += itemTotalArea * prices.tinting_per_sqm;
     }
 
     return { area: itemTotalArea, cost: itemBaseCost };
@@ -126,9 +129,9 @@ export default function App() {
     });
 
     let globalAdditive = 0;
-    if (needsInstallation) globalAdditive += totalArea * 3600;
-    if (needsDemolition) globalAdditive += totalArea * 1100;
-    globalAdditive += (deliveryDistance || 0) * 75;
+    if (needsInstallation) globalAdditive += totalArea * prices.install_per_sqm;
+    if (needsDemolition) globalAdditive += totalArea * prices.demolition_per_sqm;
+    globalAdditive += (deliveryDistance || 0) * prices.delivery_per_km;
 
     const totalMin = (baseCostTotal + globalAdditive) * 0.95;
     const totalMax = (baseCostTotal + globalAdditive) * 1.05;
@@ -393,41 +396,44 @@ export default function App() {
       if (item.needsRAL) desc.push('Покраска RAL');
       if (item.needsTinting) desc.push('Тонировка стёкол');
 
+      // Блок изделия — не разрывается между страницами
       content.push({
-        margin: [0, idx > 0 ? 14 : 0, 0, 6],
-        table: {
-          widths: ['*'],
-          body: [[{
-            text: `Изделие № ${idx + 1}  —  ${PRODUCT_LABELS[item.productType]}`,
-            bold: true, fontSize: 11, color: blue,
-          }]]
-        },
-        layout: {
-          hLineWidth: (i) => i === 1 ? 1 : 0,
-          vLineWidth: () => 0,
-          hLineColor: () => '#cccccc',
-          paddingLeft: () => 0, paddingRight: () => 0,
-          paddingTop: () => 2, paddingBottom: () => 4,
-        }
-      });
-
-      // Схема + спецификация
-      content.push({
-        columns: [
-          drawSchema(item),
-          // Характеристики
+        unbreakable: true,
+        margin: [0, idx > 0 ? 14 : 0, 0, 4],
+        stack: [
           {
-            width: '*',
-            stack: [
-              { text: [{ text: 'Ширина x Высота: ', bold: true, fontSize: 9 }, { text: `${item.width} x ${item.height} мм`, fontSize: 9 }], margin: [0, 0, 0, 3] },
-              { text: [{ text: 'Площадь 1 изд.: ', bold: true, fontSize: 9 }, { text: `${areaPerOne.toFixed(2)} м²`, fontSize: 9 }], margin: [0, 0, 0, 3] },
-              { text: [{ text: 'Количество: ', bold: true, fontSize: 9 }, { text: `${item.count} шт.`, fontSize: 9 }], margin: [0, 0, 0, 3] },
-              ...desc.map(d => ({ text: d, fontSize: 9, color: '#444', margin: [0, 0, 0, 2] })),
+            table: {
+              widths: ['*'],
+              body: [[{
+                text: `Изделие № ${idx + 1}  —  ${PRODUCT_LABELS[item.productType]}`,
+                bold: true, fontSize: 11, color: blue,
+              }]]
+            },
+            layout: {
+              hLineWidth: (i) => i === 1 ? 1 : 0,
+              vLineWidth: () => 0,
+              hLineColor: () => '#cccccc',
+              paddingLeft: () => 0, paddingRight: () => 0,
+              paddingTop: () => 2, paddingBottom: () => 4,
+            },
+            margin: [0, 0, 0, 6],
+          },
+          {
+            columns: [
+              drawSchema(item),
+              {
+                width: '*',
+                stack: [
+                  { text: [{ text: 'Ширина x Высота: ', bold: true, fontSize: 9 }, { text: `${item.width} x ${item.height} мм`, fontSize: 9 }], margin: [0, 0, 0, 3] },
+                  { text: [{ text: 'Площадь 1 изд.: ', bold: true, fontSize: 9 }, { text: `${areaPerOne.toFixed(2)} м²`, fontSize: 9 }], margin: [0, 0, 0, 3] },
+                  { text: [{ text: 'Количество: ', bold: true, fontSize: 9 }, { text: `${item.count} шт.`, fontSize: 9 }], margin: [0, 0, 0, 3] },
+                  ...desc.map(d => ({ text: d, fontSize: 9, color: '#444', margin: [0, 0, 0, 2] })),
+                ],
+              }
             ],
-          }
+            columnGap: 10,
+          },
         ],
-        columnGap: 10,
-        margin: [0, 0, 0, 4],
       });
     });
 
