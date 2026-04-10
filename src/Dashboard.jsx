@@ -126,6 +126,7 @@ function DashboardContent({ onLogout, onChangePassword }) {
   return (
     <div className="dashboard">
       <Header
+        orders={orders}
         period={period}
         setPeriod={setPeriod}
         customDate={customDate}
