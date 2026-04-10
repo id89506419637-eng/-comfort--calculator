@@ -1,4 +1,5 @@
-import { STATUS_LABELS, STATUS_COLORS } from '../constants.js';
+import { useState } from 'react';
+import { STATUS_LABELS, STATUS_COLORS, PAYMENT_STATUS } from '../constants.js';
 import { itemsSummary } from '../utils.js';
 import OrderCard from './OrderCard.jsx';
 
@@ -10,8 +11,11 @@ export default function OrderList({
   onStatusChange, onUpdateField, onArchive, onToggleTag, onShowHistory,
   employees, timings,
 }) {
+  const [paymentFilter, setPaymentFilter] = useState('all');
+
   const filteredOrders = orders.filter((o) => {
     if (statusFilter !== 'all' && o.status !== statusFilter) return false;
+    if (paymentFilter !== 'all' && (o.payment_status || 'not_paid') !== paymentFilter) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       const name = (o.client_name || '').toLowerCase();
@@ -54,6 +58,19 @@ export default function OrderList({
               onClick={() => setStatusFilter(key)}
             >
               {label}
+            </button>
+          ))}
+        </div>
+        <div className="status-filter payment-filter">
+          <button className={`filter-btn ${paymentFilter === 'all' ? 'active' : ''}`} onClick={() => setPaymentFilter('all')}>Все оплаты</button>
+          {Object.entries(PAYMENT_STATUS).map(([key, info]) => (
+            <button
+              key={key}
+              className={`filter-btn ${paymentFilter === key ? 'active' : ''}`}
+              style={paymentFilter === key ? { background: info.bg, color: info.color, borderColor: info.color + '44' } : {}}
+              onClick={() => setPaymentFilter(key)}
+            >
+              {info.label}
             </button>
           ))}
         </div>

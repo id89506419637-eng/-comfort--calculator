@@ -47,8 +47,8 @@ export function groupByDay(orders) {
     label: day.slice(8) + '.' + day.slice(5, 7),
     orders: groups[day],
     count: groups[day].length,
-    sum: groups[day].filter((o) => o.status === 'order').reduce((s, o) => s + (o.final_sum ? Number(o.final_sum) : (o.price_max || 0)), 0),
-    orderCount: groups[day].filter((o) => o.status === 'order').length,
+    sum: groups[day].filter((o) => o.status !== 'new' && o.status !== 'rejected').reduce((s, o) => s + (o.final_sum ? Number(o.final_sum) : (o.price_max || 0)), 0),
+    orderCount: groups[day].filter((o) => o.status !== 'new' && o.status !== 'rejected').length,
   }));
 }
 
