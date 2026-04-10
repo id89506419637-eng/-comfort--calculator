@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../supabase.js';
 import { DEFAULT_PRICES } from '../../hooks/usePrices.js';
 import { DEFAULT_TIMINGS } from '../../hooks/useTimings.js';
+import { EMPLOYEE_ROLES } from '../constants.js';
 
 const PRICE_FIELDS = [
   { key: 'cold_alu_default', label: 'Хол. алюминий (окно/дверь)', unit: '₽/м²' },
@@ -38,17 +39,22 @@ const TIMING_FIELDS = [
 export default function PricesPanel({ onBack }) {
   const [prices, setPrices] = useState({ ...DEFAULT_PRICES });
   const [timings, setTimings] = useState({ ...DEFAULT_TIMINGS });
+  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [activeTab, setActiveTab] = useState('prices');
+  const [newEmpName, setNewEmpName] = useState('');
+  const [newEmpRole, setNewEmpRole] = useState('manager');
+  const [newEmpPhone, setNewEmpPhone] = useState('');
 
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const [pricesRes, timingsRes] = await Promise.all([
+      const [pricesRes, timingsRes, empRes] = await Promise.all([
         supabase.from('prices').select('key, value'),
         supabase.from('timings').select('key, value'),
+        supabase.from('employees').select('*').order('name'),
       ]);
       if (pricesRes.data && pricesRes.data.length > 0) {
         const fetched = {};
@@ -60,6 +66,7 @@ export default function PricesPanel({ onBack }) {
         timingsRes.data.forEach((r) => { fetched[r.key] = Number(r.value); });
         setTimings((prev) => ({ ...prev, ...fetched }));
       }
+      if (empRes.data) setEmployees(empRes.data);
       setLoading(false);
     }
     load();
@@ -77,7 +84,6 @@ export default function PricesPanel({ onBack }) {
     setSaving(true);
     setMessage('');
     try {
-      // Upsert prices
       const priceRows = Object.entries(prices).map(([key, value]) => {
         const field = PRICE_FIELDS.find((f) => f.key === key);
         return { key, value: Number(value), label: field?.label || key };
@@ -85,7 +91,6 @@ export default function PricesPanel({ onBack }) {
       const { error: priceError } = await supabase.from('prices').upsert(priceRows, { onConflict: 'key' });
       if (priceError) throw priceError;
 
-      // Upsert timings
       const timingRows = Object.entries(timings).map(([key, value]) => {
         const field = TIMING_FIELDS.find((f) => f.key === key);
         return { key, value: Number(value), label: field?.label || key };
@@ -103,6 +108,43 @@ export default function PricesPanel({ onBack }) {
     }
   };
 
+  // === Сотрудники ===
+  const addEmployee = async () => {
+    if (!newEmpName.trim()) { alert('Введите фамилию'); return; }
+    const { data, error } = await supabase.from('employees').insert({
+      name: newEmpName.trim(),
+      role: newEmpRole,
+      phone: newEmpPhone.trim() || null,
+    }).select().single();
+    if (!error && data) {
+      setEmployees((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
+      setNewEmpName('');
+      setNewEmpPhone('');
+    }
+  };
+
+  const toggleEmployee = async (id, currentActive) => {
+    const { error } = await supabase.from('employees').update({ active: !currentActive }).eq('id', id);
+    if (!error) {
+      setEmployees((prev) => prev.map(e => e.id === id ? { ...e, active: !currentActive } : e));
+    }
+  };
+
+  const deleteEmployee = async (id, name) => {
+    if (!window.confirm(`Удалить сотрудника "${name}"?`)) return;
+    const { error } = await supabase.from('employees').delete().eq('id', id);
+    if (!error) {
+      setEmployees((prev) => prev.filter(e => e.id !== id));
+    }
+  };
+
+  const updateEmployeeRole = async (id, role) => {
+    const { error } = await supabase.from('employees').update({ role }).eq('id', id);
+    if (!error) {
+      setEmployees((prev) => prev.map(e => e.id === id ? { ...e, role } : e));
+    }
+  };
+
   if (loading) {
     return (
       <div className="prices-panel">
@@ -111,7 +153,7 @@ export default function PricesPanel({ onBack }) {
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12 15L7 10L12 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
             Назад к заявкам
           </button>
-          <h2 className="prices-title">Цены и сроки</h2>
+          <h2 className="prices-title">Настройки</h2>
         </div>
         <div className="loading-state">
           <div className="spinner" />
@@ -121,10 +163,6 @@ export default function PricesPanel({ onBack }) {
     );
   }
 
-  const fields = activeTab === 'prices' ? PRICE_FIELDS : TIMING_FIELDS;
-  const values = activeTab === 'prices' ? prices : timings;
-  const onChange = activeTab === 'prices' ? handlePriceChange : handleTimingChange;
-
   return (
     <div className="prices-panel">
       <div className="prices-header">
@@ -133,7 +171,7 @@ export default function PricesPanel({ onBack }) {
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12 15L7 10L12 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
             Назад к заявкам
           </button>
-          <h2 className="prices-title">Цены и сроки</h2>
+          <h2 className="prices-title">Настройки</h2>
         </div>
         <div className="prices-header-right">
           {message && (
@@ -141,9 +179,11 @@ export default function PricesPanel({ onBack }) {
               {message}
             </span>
           )}
-          <button className="prices-save-btn" onClick={handleSave} disabled={saving}>
-            {saving ? 'Сохранение...' : 'Сохранить'}
-          </button>
+          {activeTab !== 'employees' && (
+            <button className="prices-save-btn" onClick={handleSave} disabled={saving}>
+              {saving ? 'Сохранение...' : 'Сохранить'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -158,27 +198,100 @@ export default function PricesPanel({ onBack }) {
           className={`prices-tab ${activeTab === 'timings' ? 'active' : ''}`}
           onClick={() => setActiveTab('timings')}
         >
-          Сроки изготовления и монтажа
+          Сроки
+        </button>
+        <button
+          className={`prices-tab ${activeTab === 'employees' ? 'active' : ''}`}
+          onClick={() => setActiveTab('employees')}
+        >
+          Сотрудники
         </button>
       </div>
 
-      <div className="prices-grid">
-        {fields.map((field) => (
-          <div key={field.key} className="prices-field">
-            <label className="prices-label">{field.label}</label>
-            <div className="prices-input-wrapper">
-              <input
-                type="number"
-                step="any"
-                className="prices-input"
-                value={values[field.key] ?? ''}
-                onChange={(e) => onChange(field.key, e.target.value)}
-              />
-              <span className="prices-unit">{field.unit}</span>
-            </div>
+      {activeTab === 'employees' ? (
+        <div className="employees-section">
+          {/* Форма добавления */}
+          <div className="emp-add-form">
+            <input
+              type="text"
+              className="emp-input"
+              placeholder="Фамилия"
+              value={newEmpName}
+              onChange={(e) => setNewEmpName(e.target.value)}
+            />
+            <select
+              className="emp-select"
+              value={newEmpRole}
+              onChange={(e) => setNewEmpRole(e.target.value)}
+            >
+              {Object.entries(EMPLOYEE_ROLES).map(([key, label]) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
+            <input
+              type="text"
+              className="emp-input emp-phone"
+              placeholder="Телефон"
+              value={newEmpPhone}
+              onChange={(e) => setNewEmpPhone(e.target.value)}
+            />
+            <button className="emp-add-btn" onClick={addEmployee}>Добавить</button>
           </div>
-        ))}
-      </div>
+
+          {/* Список сотрудников */}
+          <div className="emp-list">
+            {employees.map((emp) => (
+              <div key={emp.id} className={`emp-row ${!emp.active ? 'emp-inactive' : ''}`}>
+                <div className="emp-info">
+                  <span className="emp-name">{emp.name}</span>
+                  {emp.phone && <span className="emp-phone-text">{emp.phone}</span>}
+                </div>
+                <select
+                  className="emp-role-select"
+                  value={emp.role}
+                  onChange={(e) => updateEmployeeRole(emp.id, e.target.value)}
+                >
+                  {Object.entries(EMPLOYEE_ROLES).map(([key, label]) => (
+                    <option key={key} value={key}>{label}</option>
+                  ))}
+                </select>
+                <button
+                  className={`emp-toggle-btn ${emp.active ? 'active' : ''}`}
+                  onClick={() => toggleEmployee(emp.id, emp.active)}
+                  title={emp.active ? 'Деактивировать' : 'Активировать'}
+                >
+                  {emp.active ? 'Активен' : 'Неактивен'}
+                </button>
+                <button
+                  className="emp-delete-btn"
+                  onClick={() => deleteEmployee(emp.id, emp.name)}
+                  title="Удалить"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="prices-grid">
+          {(activeTab === 'prices' ? PRICE_FIELDS : TIMING_FIELDS).map((field) => (
+            <div key={field.key} className="prices-field">
+              <label className="prices-label">{field.label}</label>
+              <div className="prices-input-wrapper">
+                <input
+                  type="number"
+                  step="any"
+                  className="prices-input"
+                  value={(activeTab === 'prices' ? prices : timings)[field.key] ?? ''}
+                  onChange={(e) => (activeTab === 'prices' ? handlePriceChange : handleTimingChange)(field.key, e.target.value)}
+                />
+                <span className="prices-unit">{field.unit}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
