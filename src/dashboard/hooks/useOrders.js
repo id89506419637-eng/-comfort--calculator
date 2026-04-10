@@ -130,24 +130,28 @@ export default function useOrders(period, customDate) {
 
     const { error } = await supabase.from('orders').update({ status: newStatus, ...extraData }).eq('id', id);
     if (!error) {
-      // Логируем смену статуса
-      await logAction(id, 'status_change', {
-        oldValue: STATUS_LABELS[oldStatus] || oldStatus,
-        newValue: STATUS_LABELS[newStatus] || newStatus,
-        comment: extraData.order_comment || null,
-      });
+      // Логируем смену статуса только если реально изменился
+      if (oldStatus !== newStatus) {
+        await logAction(id, 'status_change', {
+          oldValue: STATUS_LABELS[oldStatus] || oldStatus,
+          newValue: STATUS_LABELS[newStatus] || newStatus,
+          comment: extraData.order_comment || null,
+        });
+      }
 
-      // Логируем изменения полей
+      // Логируем изменения полей — только если значение реально изменилось
       const fieldsToLog = ['final_sum', 'address', 'contractor', 'contract_number', 'invoice_number',
         'manager', 'measurer', 'delivery_type', 'total_area', 'payment_status', 'paid_amount', 'production_percent'];
       for (const field of fieldsToLog) {
-        if (extraData[field] !== undefined && extraData[field] !== existing?.[field]) {
-          await logAction(id, 'field_update', {
-            fieldName: field,
-            oldValue: String(existing?.[field] ?? ''),
-            newValue: String(extraData[field] ?? ''),
-          });
-        }
+        if (extraData[field] === undefined) continue;
+        const oldVal = String(existing?.[field] ?? '');
+        const newVal = String(extraData[field] ?? '');
+        if (oldVal === newVal) continue;
+        await logAction(id, 'field_update', {
+          fieldName: field,
+          oldValue: oldVal,
+          newValue: newVal,
+        });
       }
 
       setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status: newStatus, ...extraData } : o)));
@@ -222,13 +226,15 @@ export default function useOrders(period, customDate) {
   // Обновить отдельное поле заказа (без смены статуса)
   const updateOrderField = async (id, field, value) => {
     const existing = orders.find((o) => o.id === id);
-    const oldValue = existing?.[field];
+    const oldVal = String(existing?.[field] ?? '');
+    const newVal = String(value ?? '');
+    if (oldVal === newVal) return; // ничего не изменилось
     const { error } = await supabase.from('orders').update({ [field]: value }).eq('id', id);
     if (!error) {
       await logAction(id, field === 'payment_status' || field === 'paid_amount' ? 'payment' : 'field_update', {
         fieldName: field,
-        oldValue: String(oldValue ?? ''),
-        newValue: String(value ?? ''),
+        oldValue: oldVal,
+        newValue: newVal,
       });
       setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, [field]: value } : o)));
     }
