@@ -30,7 +30,7 @@ export const STATUS_TRANSITIONS = {
   'new': ['measurement_scheduled', 'in_work', 'rejected'],
   'in_work': ['measurement_scheduled', 'approval', 'rejected'],
   'measurement_scheduled': ['measurement_done', 'rejected'],
-  'measurement_done': ['in_work', 'approval', 'rejected'],
+  'measurement_done': ['approval', 'in_work', 'rejected'],
   'approval': ['install_scheduled', 'rejected'],
   'install_scheduled': ['install_done', 'rejected'],
   'install_done': ['completed', 'rejected'],
