@@ -1,4 +1,5 @@
 import { PERIOD_OPTIONS } from '../constants.js';
+import { LOGO_BASE64 } from '../../logo.js';
 
 export default function Header({ period, setPeriod, customDate, setCustomDate, onShowSummary, onShowPassword, onShowPrices, onShowCalendar, onShowMap, onLogout, viewMode, setViewMode }) {
   return (
@@ -9,10 +10,7 @@ export default function Header({ period, setPeriod, customDate, setCustomDate, o
           Назад к калькулятору
         </a>
         <div className="header-title-group">
-          <h1 className="header-title">
-            <span className="header-logo">К+</span>
-            Комфорт+
-          </h1>
+          <img src={LOGO_BASE64} alt="Комфорт+" className="dashboard-logo-img" />
           <span className="header-subtitle">Панель управления заказами</span>
         </div>
       </div>

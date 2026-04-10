@@ -7,6 +7,7 @@ export default function KanbanBoard({
   onStatusChange,
   onArchive,
   onToggleTag,
+  employees,
   timings,
 }) {
   // Вычисляем данные для каждой колонки
@@ -58,6 +59,7 @@ export default function KanbanBoard({
                     onStatusChange={onStatusChange}
                     onArchive={onArchive}
                     onToggleTag={onToggleTag}
+                    employees={employees}
                     timings={timings}
                   />
                 </div>

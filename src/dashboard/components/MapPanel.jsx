@@ -4,6 +4,10 @@ import { formatMoney } from '../utils.js';
 
 const YMAPS_SRC = `https://api-maps.yandex.ru/2.1/?apikey=${import.meta.env.VITE_YANDEX_MAPS_KEY}&lang=ru_RU`;
 
+// Базовая точка — офис компании
+const BASE_ADDRESS = 'Нижний Тагил, Черноисточинское шоссе 16а';
+const BASE_COORDS = [57.8833, 59.9500]; // примерные координаты офиса
+
 function loadYMaps() {
   return new Promise((resolve) => {
     if (window.ymaps) { window.ymaps.ready(() => resolve(window.ymaps)); return; }
@@ -86,8 +90,8 @@ export default function MapPanel({ orders, onBack }) {
   };
 
   const buildRoute = async () => {
-    if (checkedIds.size < 2) {
-      alert('Выберите минимум 2 адреса для маршрута');
+    if (checkedIds.size < 1) {
+      alert('Выберите хотя бы 1 адрес для маршрута');
       return;
     }
 
@@ -113,7 +117,7 @@ export default function MapPanel({ orders, onBack }) {
       } catch { /* skip */ }
     }
 
-    if (geocoded.length < 2) { setRouteBuilding(false); return; }
+    if (geocoded.length < 1) { setRouteBuilding(false); return; }
 
     // Получаем время для каждой точки
     const getTime = (order) => {
@@ -148,7 +152,7 @@ export default function MapPanel({ orders, onBack }) {
       }
     }
 
-    const addresses = optimized.map(g => g.order.address);
+    const addresses = [BASE_ADDRESS, ...optimized.map(g => g.order.address), BASE_ADDRESS];
 
     try {
       const multiRoute = new ymaps.multiRouter.MultiRoute({
@@ -193,12 +197,22 @@ export default function MapPanel({ orders, onBack }) {
     }
 
     const map = new ymaps.Map(mapRef.current, {
-      center: [57.9222, 59.9711],
+      center: BASE_COORDS,
       zoom: 12,
       controls: ['zoomControl', 'fullscreenControl'],
     });
 
     mapInstance.current = map;
+
+    // Метка офиса
+    const officePlacemark = new ymaps.Placemark(BASE_COORDS, {
+      balloonContentHeader: '<strong>Комфорт+</strong>',
+      balloonContentBody: `<div style="font-size:13px">📍 ${BASE_ADDRESS}<br>🏠 Офис компании</div>`,
+      hintContent: 'Офис Комфорт+',
+    }, {
+      preset: 'islands#redHomeIcon',
+    });
+    map.geoObjects.add(officePlacemark);
 
     if (ordersWithAddress.length === 0) return;
 
@@ -342,7 +356,7 @@ export default function MapPanel({ orders, onBack }) {
               <button
                 className="route-build-btn"
                 onClick={routeInfo ? clearRoute : buildRoute}
-                disabled={routeBuilding || (!routeInfo && checkedIds.size < 2)}
+                disabled={routeBuilding || (!routeInfo && checkedIds.size < 1)}
               >
                 {routeBuilding ? '⏳ Строю...' : routeInfo ? '✕ Сбросить' : `🚗 Маршрут (${checkedIds.size})`}
               </button>

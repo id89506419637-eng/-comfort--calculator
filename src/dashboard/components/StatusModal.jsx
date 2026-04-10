@@ -1,7 +1,10 @@
-import { REJECTION_REASONS, STATUS_LABELS } from '../constants.js';
+import { REJECTION_REASONS, STATUS_LABELS, DELIVERY_TYPES } from '../constants.js';
 
-export default function StatusModal({ modal, modalData, setModalData, onSubmit, onClose }) {
+export default function StatusModal({ modal, modalData, setModalData, employees, onSubmit, onClose }) {
   if (!modal) return null;
+
+  const managers = (employees || []).filter(e => e.role === 'manager' || e.role === 'admin');
+  const measurers = (employees || []).filter(e => e.role === 'measurer' || e.role === 'installer');
 
   if (modal.type === 'rejected') {
     return (
@@ -43,26 +46,69 @@ export default function StatusModal({ modal, modalData, setModalData, onSubmit, 
   if (modal.type === 'in_work') {
     return (
       <div className="modal-overlay" onClick={onClose}>
-        <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-box modal-box-wide" onClick={(e) => e.stopPropagation()}>
           <h3 className="modal-title">Взять в работу</h3>
-          <div className="modal-field">
-            <label>Итоговая сумма (₽)</label>
-            <input
-              type="text"
-              inputMode="numeric"
-              placeholder="Точная сумма заказа"
-              value={modalData.final_sum || ''}
-              onChange={(e) => setModalData({ ...modalData, final_sum: e.target.value })}
-            />
-          </div>
-          <div className="modal-field">
-            <label>Адрес объекта</label>
-            <input
-              type="text"
-              placeholder="Город, улица, дом, кв."
-              value={modalData.address || ''}
-              onChange={(e) => setModalData({ ...modalData, address: e.target.value })}
-            />
+          <div className="modal-grid">
+            <div className="modal-field">
+              <label>Итоговая сумма (₽)</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="Точная сумма заказа"
+                value={modalData.final_sum || ''}
+                onChange={(e) => setModalData({ ...modalData, final_sum: e.target.value })}
+              />
+            </div>
+            <div className="modal-field">
+              <label>Адрес объекта</label>
+              <input
+                type="text"
+                placeholder="Город, улица, дом, кв."
+                value={modalData.address || ''}
+                onChange={(e) => setModalData({ ...modalData, address: e.target.value })}
+              />
+            </div>
+            <div className="modal-field">
+              <label>Контрагент</label>
+              <input
+                type="text"
+                placeholder="Подрядчик / заказчик"
+                value={modalData.contractor || ''}
+                onChange={(e) => setModalData({ ...modalData, contractor: e.target.value })}
+              />
+            </div>
+            <div className="modal-field">
+              <label>№ договора</label>
+              <input
+                type="text"
+                placeholder="дог 75/26"
+                value={modalData.contract_number || ''}
+                onChange={(e) => setModalData({ ...modalData, contract_number: e.target.value })}
+              />
+            </div>
+            <div className="modal-field">
+              <label>Ответственный</label>
+              <select
+                value={modalData.manager || ''}
+                onChange={(e) => setModalData({ ...modalData, manager: e.target.value })}
+              >
+                <option value="">— выбрать —</option>
+                {managers.map(e => (
+                  <option key={e.id} value={e.name}>{e.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="modal-field">
+              <label>Тип отгрузки</label>
+              <select
+                value={modalData.delivery_type || 'install'}
+                onChange={(e) => setModalData({ ...modalData, delivery_type: e.target.value })}
+              >
+                {Object.entries(DELIVERY_TYPES).map(([key, val]) => (
+                  <option key={key} value={key}>{val.icon} {val.label}</option>
+                ))}
+              </select>
+            </div>
           </div>
           <div className="modal-field">
             <label>Комментарий</label>
@@ -87,30 +133,44 @@ export default function StatusModal({ modal, modalData, setModalData, onSubmit, 
       <div className="modal-overlay" onClick={onClose}>
         <div className="modal-box" onClick={(e) => e.stopPropagation()}>
           <h3 className="modal-title">Назначить замер</h3>
-          <div className="modal-field">
-            <label>Дата замера</label>
-            <input
-              type="date"
-              value={modalData.measurement_date || ''}
-              onChange={(e) => setModalData({ ...modalData, measurement_date: e.target.value })}
-            />
-          </div>
-          <div className="modal-field">
-            <label>Время</label>
-            <input
-              type="time"
-              value={modalData.measurement_time || ''}
-              onChange={(e) => setModalData({ ...modalData, measurement_time: e.target.value })}
-            />
-          </div>
-          <div className="modal-field">
-            <label>Адрес объекта</label>
-            <input
-              type="text"
-              placeholder="Город, улица, дом, кв."
-              value={modalData.address || ''}
-              onChange={(e) => setModalData({ ...modalData, address: e.target.value })}
-            />
+          <div className="modal-grid">
+            <div className="modal-field">
+              <label>Дата замера</label>
+              <input
+                type="date"
+                value={modalData.measurement_date || ''}
+                onChange={(e) => setModalData({ ...modalData, measurement_date: e.target.value })}
+              />
+            </div>
+            <div className="modal-field">
+              <label>Время</label>
+              <input
+                type="time"
+                value={modalData.measurement_time || ''}
+                onChange={(e) => setModalData({ ...modalData, measurement_time: e.target.value })}
+              />
+            </div>
+            <div className="modal-field">
+              <label>Адрес объекта</label>
+              <input
+                type="text"
+                placeholder="Город, улица, дом, кв."
+                value={modalData.address || ''}
+                onChange={(e) => setModalData({ ...modalData, address: e.target.value })}
+              />
+            </div>
+            <div className="modal-field">
+              <label>Замерщик</label>
+              <select
+                value={modalData.measurer || ''}
+                onChange={(e) => setModalData({ ...modalData, measurer: e.target.value })}
+              >
+                <option value="">— выбрать —</option>
+                {measurers.map(e => (
+                  <option key={e.id} value={e.name}>{e.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
           <div className="modal-field">
             <label>Комментарий</label>
@@ -130,26 +190,104 @@ export default function StatusModal({ modal, modalData, setModalData, onSubmit, 
     );
   }
 
+  if (modal.type === 'measurement_done') {
+    return (
+      <div className="modal-overlay" onClick={onClose}>
+        <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+          <h3 className="modal-title">Замер выполнен</h3>
+          <div className="modal-field">
+            <label>Общая площадь (м²)</label>
+            <input
+              type="number"
+              placeholder="Площадь объекта"
+              value={modalData.total_area || ''}
+              onChange={(e) => setModalData({ ...modalData, total_area: e.target.value })}
+            />
+          </div>
+          <div className="modal-field">
+            <label>Комментарий</label>
+            <textarea
+              placeholder="Результаты замера, примечания"
+              value={modalData.comment || ''}
+              onChange={(e) => setModalData({ ...modalData, comment: e.target.value })}
+              rows={2}
+            />
+          </div>
+          <div className="modal-buttons">
+            <button className="modal-btn-cancel" onClick={onClose}>Отмена</button>
+            <button className="modal-btn-confirm" onClick={onSubmit}>Подтвердить</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (modal.type === 'approval') {
+    return (
+      <div className="modal-overlay" onClick={onClose}>
+        <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+          <h3 className="modal-title">На согласование</h3>
+          <div className="modal-grid">
+            <div className="modal-field">
+              <label>№ счёта</label>
+              <input
+                type="text"
+                placeholder="Номер счёта"
+                value={modalData.invoice_number || ''}
+                onChange={(e) => setModalData({ ...modalData, invoice_number: e.target.value })}
+              />
+            </div>
+            <div className="modal-field">
+              <label>Итоговая сумма (₽)</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="Сумма по смете"
+                value={modalData.final_sum || ''}
+                onChange={(e) => setModalData({ ...modalData, final_sum: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="modal-field">
+            <label>Комментарий</label>
+            <textarea
+              placeholder="Доп. информация"
+              value={modalData.comment || ''}
+              onChange={(e) => setModalData({ ...modalData, comment: e.target.value })}
+              rows={2}
+            />
+          </div>
+          <div className="modal-buttons">
+            <button className="modal-btn-cancel" onClick={onClose}>Отмена</button>
+            <button className="modal-btn-confirm" onClick={onSubmit}>На согласование</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (modal.type === 'install_scheduled') {
     return (
       <div className="modal-overlay" onClick={onClose}>
         <div className="modal-box" onClick={(e) => e.stopPropagation()}>
           <h3 className="modal-title">Назначить монтаж</h3>
-          <div className="modal-field">
-            <label>Дата монтажа</label>
-            <input
-              type="date"
-              value={modalData.install_date || ''}
-              onChange={(e) => setModalData({ ...modalData, install_date: e.target.value })}
-            />
-          </div>
-          <div className="modal-field">
-            <label>Время</label>
-            <input
-              type="time"
-              value={modalData.install_time || ''}
-              onChange={(e) => setModalData({ ...modalData, install_time: e.target.value })}
-            />
+          <div className="modal-grid">
+            <div className="modal-field">
+              <label>Дата монтажа</label>
+              <input
+                type="date"
+                value={modalData.install_date || ''}
+                onChange={(e) => setModalData({ ...modalData, install_date: e.target.value })}
+              />
+            </div>
+            <div className="modal-field">
+              <label>Время</label>
+              <input
+                type="time"
+                value={modalData.install_time || ''}
+                onChange={(e) => setModalData({ ...modalData, install_time: e.target.value })}
+              />
+            </div>
           </div>
           <div className="modal-field">
             <label>Комментарий</label>

@@ -596,7 +596,7 @@ export default function App() {
   return (
     <div className="app-container" ref={containerRef}>
       <div className="calculator-card">
-        <h1 className="title">Комфорт+</h1>
+        <img src={LOGO_BASE64} alt="Комфорт+" className="logo-img" />
         <p className="subtitle">Экспресс-калькулятор стоимости заказа</p>
 
         <div className="client-info">

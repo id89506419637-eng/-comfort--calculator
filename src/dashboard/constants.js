@@ -75,4 +75,30 @@ export const ORDER_TAGS = [
   { key: 'vip', label: 'VIP', color: '#8b5cf6' },
 ];
 
+export const PAYMENT_STATUS = {
+  'not_paid': { label: 'Не оплачен', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.15)' },
+  'partial': { label: 'Частично', color: '#eab308', bg: 'rgba(234, 179, 8, 0.15)' },
+  'paid': { label: 'Оплачен', color: '#22c55e', bg: 'rgba(34, 197, 94, 0.15)' },
+};
+
+export const DELIVERY_TYPES = {
+  'pickup': { label: 'Самовывоз', icon: '📦' },
+  'delivery': { label: 'Доставка', icon: '🚚' },
+  'install': { label: 'Монтаж', icon: '🔧' },
+};
+
+export const EMPLOYEE_ROLES = {
+  'manager': 'Менеджер',
+  'measurer': 'Замерщик',
+  'installer': 'Монтажник',
+  'admin': 'Администратор',
+};
+
+export const ACTION_LABELS = {
+  'status_change': 'Смена статуса',
+  'field_update': 'Обновление',
+  'comment': 'Комментарий',
+  'payment': 'Оплата',
+};
+
 export const PIE_COLORS = ['#3b82f6', '#8b5cf6', '#22c55e', '#eab308', '#ef4444', '#ec4899', '#06b6d4'];

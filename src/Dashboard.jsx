@@ -15,6 +15,7 @@ import SummaryModal from './dashboard/components/SummaryModal.jsx';
 import PricesPanel from './dashboard/components/PricesPanel.jsx';
 import CalendarPanel from './dashboard/components/CalendarPanel.jsx';
 import MapPanel from './dashboard/components/MapPanel.jsx';
+import HistoryPanel from './dashboard/components/HistoryPanel.jsx';
 import './Dashboard.css';
 
 export default function Dashboard() {
@@ -43,16 +44,18 @@ function DashboardContent({ onLogout, onChangePassword }) {
   const [showPrices, setShowPrices] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [showMap, setShowMap] = useState(false);
+  const [historyOrderId, setHistoryOrderId] = useState(null);
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'kanban'
   const { timings } = useTimings();
 
   const {
-    orders, loading,
+    orders, loading, employees,
     searchQuery, setSearchQuery,
     statusFilter, setStatusFilter,
     openDropdown, setOpenDropdown, dropdownRef,
     modal, setModal, modalData, setModalData,
     handleStatusChange, submitModal,
+    updateOrderField,
     archiveOrder, toggleTag,
   } = useOrders(period, customDate);
 
@@ -96,6 +99,9 @@ function DashboardContent({ onLogout, onChangePassword }) {
   }, [period, orders.length]);
 
   const conversionDiff = prevConversion !== null ? (parseFloat(conversion) - parseFloat(prevConversion)).toFixed(1) : null;
+
+  // Найти заказ для HistoryPanel
+  const historyOrder = historyOrderId ? orders.find(o => o.id === historyOrderId) : null;
 
   if (showPrices) {
     return <PricesPanel onBack={() => setShowPrices(false)} />;
@@ -157,8 +163,11 @@ function DashboardContent({ onLogout, onChangePassword }) {
             setOpenDropdown={setOpenDropdown}
             dropdownRef={dropdownRef}
             onStatusChange={handleStatusChange}
+            onUpdateField={updateOrderField}
             onArchive={archiveOrder}
             onToggleTag={toggleTag}
+            onShowHistory={(id) => setHistoryOrderId(id)}
+            employees={employees}
             timings={timings}
           />
         ) : (
@@ -167,6 +176,7 @@ function DashboardContent({ onLogout, onChangePassword }) {
             onStatusChange={handleStatusChange}
             onArchive={archiveOrder}
             onToggleTag={toggleTag}
+            employees={employees}
             timings={timings}
           />
         )}
@@ -178,9 +188,18 @@ function DashboardContent({ onLogout, onChangePassword }) {
         modal={modal}
         modalData={modalData}
         setModalData={setModalData}
+        employees={employees}
         onSubmit={submitModal}
         onClose={() => setModal(null)}
       />
+
+      {historyOrderId && (
+        <HistoryPanel
+          orderId={historyOrderId}
+          clientName={historyOrder?.client_name}
+          onClose={() => setHistoryOrderId(null)}
+        />
+      )}
 
       {showPassword && (
         <PasswordModal

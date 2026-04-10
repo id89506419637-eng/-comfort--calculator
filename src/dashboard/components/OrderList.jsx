@@ -7,8 +7,8 @@ export default function OrderList({
   searchQuery, setSearchQuery,
   statusFilter, setStatusFilter,
   openDropdown, setOpenDropdown, dropdownRef,
-  onStatusChange, onArchive, onToggleTag,
-  timings,
+  onStatusChange, onUpdateField, onArchive, onToggleTag, onShowHistory,
+  employees, timings,
 }) {
   const filteredOrders = orders.filter((o) => {
     if (statusFilter !== 'all' && o.status !== statusFilter) return false;
@@ -18,7 +18,12 @@ export default function OrderList({
       const phone = (o.client_phone || '').toLowerCase();
       const company = (o.client_company || '').toLowerCase();
       const composition = itemsSummary(o.items).toLowerCase();
-      if (!name.includes(q) && !phone.includes(q) && !company.includes(q) && !composition.includes(q)) return false;
+      const manager = (o.manager || '').toLowerCase();
+      const contractor = (o.contractor || '').toLowerCase();
+      const address = (o.address || '').toLowerCase();
+      const contract = (o.contract_number || '').toLowerCase();
+      if (!name.includes(q) && !phone.includes(q) && !company.includes(q) && !composition.includes(q)
+        && !manager.includes(q) && !contractor.includes(q) && !address.includes(q) && !contract.includes(q)) return false;
     }
     return true;
   });
@@ -34,7 +39,7 @@ export default function OrderList({
           <input
             type="text"
             className="search-input"
-            placeholder="Поиск по имени, телефону..."
+            placeholder="Поиск по имени, телефону, менеджеру, адресу..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -74,8 +79,11 @@ export default function OrderList({
               setOpenDropdown={setOpenDropdown}
               dropdownRef={dropdownRef}
               onStatusChange={onStatusChange}
+              onUpdateField={onUpdateField}
               onArchive={onArchive}
               onToggleTag={onToggleTag}
+              onShowHistory={onShowHistory}
+              employees={employees}
               timings={timings}
             />
           ))}
