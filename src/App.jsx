@@ -64,8 +64,14 @@ export default function App() {
     setItems(items.map(i => {
       if (i.id !== id) return i;
       const updated = { ...i, [field]: value };
-      if (field === 'productType' && value === 'partition') {
-        updated.profileType = 'cold-alu';
+      
+      // Auto-correct profile if product type changes
+      if (field === 'productType') {
+        if (value === 'partition') {
+          updated.profileType = 'cold-alu';
+        } else if (value === 'sliding-balcony' && updated.profileType === 'pvc') {
+          updated.profileType = 'cold-alu';
+        }
       }
       return updated;
     }));
@@ -74,6 +80,12 @@ export default function App() {
   const getProfileOptions = (productType) => {
     if (productType === 'partition') {
       return [{ value: 'cold-alu', label: 'Холодный алюминий' }];
+    }
+    if (productType === 'sliding-balcony') {
+      return [
+        { value: 'cold-alu', label: 'Холодный алюминий' },
+        { value: 'warm-alu', label: 'Тёплый алюминий' },
+      ];
     }
     return [
       { value: 'cold-alu', label: 'Холодный алюминий' },
