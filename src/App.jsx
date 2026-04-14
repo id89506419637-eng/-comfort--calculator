@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from './supabase.js';
 import { LOGO_BASE64 } from './logo.js';
-const LOGO_URL = '/logo_komfort.png';
+import LogoSVG from './LogoSVG.jsx';
 import usePrices from './hooks/usePrices.js';
 import './index.css';
 
@@ -609,7 +609,7 @@ export default function App() {
   return (
     <div className="app-container" ref={containerRef}>
       <div className="calculator-card">
-        <img src={LOGO_URL} alt="Комфорт+" className="logo-img" />
+        <LogoSVG height={48} className="logo-img" />
         <p className="subtitle">Экспресс-калькулятор стоимости заказа</p>
 
         <div className="client-info">

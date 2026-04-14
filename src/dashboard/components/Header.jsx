@@ -1,5 +1,5 @@
 import { PERIOD_OPTIONS } from '../constants.js';
-const LOGO_URL = '/logo_komfort.png';
+import LogoSVG from '../../LogoSVG.jsx';
 import { exportToExcel, exportToPDF } from '../export.js';
 
 export default function Header({ 
@@ -16,7 +16,7 @@ export default function Header({
           Назад к калькулятору
         </a>
         <div className="header-title-group">
-          <img src={LOGO_URL} alt="Комфорт+" className="dashboard-logo-img" />
+          <LogoSVG height={28} className="dashboard-logo-img" />
           <span className="header-subtitle">Панель управления заказами</span>
         </div>
       </div>
