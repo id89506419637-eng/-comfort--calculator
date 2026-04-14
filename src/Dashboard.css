@@ -57,9 +57,7 @@
   height: 28px;
   width: auto;
   object-fit: contain;
-  background: #fff;
-  padding: 3px 8px;
-  border-radius: 6px;
+  filter: brightness(0) invert(1);
 }
 
 
