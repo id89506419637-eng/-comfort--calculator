@@ -54,9 +54,12 @@
 }
 
 .dashboard-logo-img {
-  height: 32px;
+  height: 28px;
   width: auto;
   object-fit: contain;
+  background: #fff;
+  padding: 3px 8px;
+  border-radius: 6px;
 }
 
 

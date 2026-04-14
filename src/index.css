@@ -40,9 +40,13 @@ body {
 
 .logo-img {
   display: block;
-  height: 48px;
+  height: 44px;
   width: auto;
   margin: 0 0 0.5rem;
+  background: #fff;
+  padding: 4px 12px;
+  border-radius: 8px;
+  object-fit: contain;
 }
 
 .subtitle {
