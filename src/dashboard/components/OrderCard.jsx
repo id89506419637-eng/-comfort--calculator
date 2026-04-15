@@ -200,20 +200,36 @@ export default function OrderCard({
           )}
         </div>
         <div className="order-right">
-          {/* Оплата */}
-          <span
-            className="payment-badge"
-            style={{ color: paymentInfo.color, background: paymentInfo.bg, border: `1px solid ${paymentInfo.color}33` }}
-            onClick={() => {
-              const statuses = ['not_paid', 'partial', 'paid'];
-              const idx = statuses.indexOf(order.payment_status || 'not_paid');
-              const next = statuses[(idx + 1) % statuses.length];
-              onUpdateField(order.id, 'payment_status', next);
-            }}
-            title="Нажмите для смены статуса оплаты"
-          >
-            {paymentInfo.label}
-          </span>
+          {/* Оплата — выпадающий список */}
+          <div className="status-wrapper" ref={openDropdown === `pay-${order.id}` ? dropdownRef : null}>
+            <button
+              className="payment-badge"
+              style={{ color: paymentInfo.color, background: paymentInfo.bg, border: `1px solid ${paymentInfo.color}33` }}
+              onClick={() => setOpenDropdown(openDropdown === `pay-${order.id}` ? null : `pay-${order.id}`)}
+              title="Выберите статус оплаты"
+            >
+              {paymentInfo.label}
+              <svg width="10" height="10" viewBox="0 0 12 12" fill="none" style={{ marginLeft: 4 }}><path d="M3 5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </button>
+            {openDropdown === `pay-${order.id}` && (
+              <div className="status-dropdown">
+                {Object.entries(PAYMENT_STATUS).map(([key, info]) => (
+                  <button
+                    key={key}
+                    className="dropdown-item"
+                    style={{ color: info.color }}
+                    onClick={() => {
+                      onUpdateField(order.id, 'payment_status', key);
+                      setOpenDropdown(null);
+                    }}
+                  >
+                    <span className="dropdown-dot" style={{ background: info.color }} />
+                    {info.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           <span className={`order-price ${order.final_sum ? 'order-price-final' : ''}`}>
             {order.final_sum

@@ -16,7 +16,7 @@ export default function Header({
           Назад к калькулятору
         </a>
         <div className="header-title-group">
-          <LogoSVG height={28} className="dashboard-logo-img" />
+          <LogoSVG height={48} className="dashboard-logo-img" />
           <span className="header-subtitle">Панель управления заказами</span>
         </div>
       </div>
