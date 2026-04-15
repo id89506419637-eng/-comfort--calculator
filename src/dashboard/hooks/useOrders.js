@@ -130,16 +130,19 @@ export default function useOrders(period, customDate) {
 
     const { error } = await supabase.from('orders').update({ status: newStatus, ...extraData }).eq('id', id);
     if (!error) {
-      // Логируем смену статуса только если реально изменился
+      // Сразу обновляем UI — не ждём логирования
+      setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status: newStatus, ...extraData } : o)));
+
+      // Логируем параллельно в фоне
+      const logPromises = [];
       if (oldStatus !== newStatus) {
-        await logAction(id, 'status_change', {
+        logPromises.push(logAction(id, 'status_change', {
           oldValue: STATUS_LABELS[oldStatus] || oldStatus,
           newValue: STATUS_LABELS[newStatus] || newStatus,
           comment: extraData.order_comment || null,
-        });
+        }));
       }
 
-      // Логируем изменения полей — только если значение реально изменилось
       const fieldsToLog = ['final_sum', 'address', 'contractor', 'contract_number', 'invoice_number',
         'manager', 'measurer', 'delivery_type', 'total_area', 'payment_status', 'paid_amount', 'production_percent'];
       for (const field of fieldsToLog) {
@@ -147,14 +150,14 @@ export default function useOrders(period, customDate) {
         const oldVal = String(existing?.[field] ?? '');
         const newVal = String(extraData[field] ?? '');
         if (oldVal === newVal) continue;
-        await logAction(id, 'field_update', {
+        logPromises.push(logAction(id, 'field_update', {
           fieldName: field,
           oldValue: oldVal,
           newValue: newVal,
-        });
+        }));
       }
 
-      setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status: newStatus, ...extraData } : o)));
+      Promise.all(logPromises);
     }
     setModal(null);
     setModalData({});
