@@ -594,6 +594,9 @@ export default function App() {
     // Подпись
     content.push({ text: 'Согласовано (габариты, комплектация) ____________', fontSize: 9, margin: [0, 16, 0, 0] });
 
+    // Оферта
+    content.push({ text: 'Не является публичной офертой.', fontSize: 8, color: '#888', italics: true, margin: [0, 12, 0, 0] });
+
     const docDefinition = {
       pageSize: 'A4',
       pageMargins: [40, 40, 40, 30],
@@ -733,7 +736,7 @@ export default function App() {
         </div>
 
         <div className="result-box">
-          <div className="result-title">Итоговая стоимость заказа (ВИЛКА)</div>
+          <div className="result-title">Предварительная стоимость заказа</div>
           <div className="result-price">{min} – {max} &#8381;</div>
         </div>
 
