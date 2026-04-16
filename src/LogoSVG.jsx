@@ -16,8 +16,8 @@ export default function LogoSVG({ height = 48, color = '#ffffff', className = ''
       {/* Залитая верхняя левая грань (крыша) */}
       <path d="M80,10 L10,100 L80,140 Z" fill={color} />
 
-      {/* Правая грань — контур (без грани EF) */}
-      <path d="M80,140 L150,100 L150,190" stroke={color} strokeWidth="3" strokeLinejoin="round" fill="none" />
+      {/* Правая грань — контур (CF укорочена) */}
+      <path d="M80,140 L150,100 L150,160" stroke={color} strokeWidth="3" strokeLinejoin="round" fill="none" />
       {/* Верхняя правая грань (крыша) — контур */}
       <path d="M80,10 L80,140 L150,100 Z" stroke={color} strokeWidth="3" strokeLinejoin="round" fill="none" />
 
