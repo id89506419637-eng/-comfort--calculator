@@ -252,6 +252,14 @@ export default function useOrders(period, customDate) {
     }
   };
 
+  const deleteOrder = async (id) => {
+    if (!window.confirm('Удалить заявку навсегда? Это действие необратимо!')) return;
+    const { error } = await supabase.from('orders').delete().eq('id', id);
+    if (!error) {
+      setOrders((prev) => prev.filter((o) => o.id !== id));
+    }
+  };
+
   const toggleTag = async (id, tagKey) => {
     const order = orders.find((o) => o.id === id);
     const current = (order?.tag || '').split(',').filter(Boolean);
@@ -273,6 +281,6 @@ export default function useOrders(period, customDate) {
     modal, setModal, modalData, setModalData,
     handleStatusChange, submitModal,
     updateOrderField,
-    archiveOrder, toggleTag,
+    archiveOrder, deleteOrder, toggleTag,
   };
 }

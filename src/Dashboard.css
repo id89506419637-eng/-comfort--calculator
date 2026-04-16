@@ -756,6 +756,29 @@
   background: rgba(239, 68, 68, 0.1);
 }
 
+.permanent-delete-btn {
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  opacity: 0;
+}
+
+.order-row:hover .permanent-delete-btn {
+  opacity: 0.7;
+}
+
+.permanent-delete-btn:hover {
+  opacity: 1;
+  color: #fff;
+  background: #ef4444;
+}
+
 /* ===== DATE PICKER ===== */
 
 .custom-date-wrapper {

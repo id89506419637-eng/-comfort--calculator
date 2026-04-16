@@ -56,7 +56,7 @@ function DashboardContent({ onLogout, onChangePassword }) {
     modal, setModal, modalData, setModalData,
     handleStatusChange, submitModal,
     updateOrderField,
-    archiveOrder, toggleTag,
+    archiveOrder, deleteOrder, toggleTag,
   } = useOrders(period, customDate);
 
   /* stats — "заказ" = всё кроме new и rejected */
@@ -166,6 +166,7 @@ function DashboardContent({ onLogout, onChangePassword }) {
             onStatusChange={handleStatusChange}
             onUpdateField={updateOrderField}
             onArchive={archiveOrder}
+            onDelete={deleteOrder}
             onToggleTag={toggleTag}
             onShowHistory={(id) => setHistoryOrderId(id)}
             employees={employees}

@@ -72,6 +72,7 @@ export default function OrderCard({
   onArchive,
   onToggleTag,
   onShowHistory,
+  onDelete,
   employees,
   timings,
   isCompact = false
@@ -386,6 +387,11 @@ export default function OrderCard({
             <button className="delete-btn" onClick={() => onArchive(order.id)} title="Архивировать">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                 <path d="M5 8l2 12a2 2 0 002 2h6a2 2 0 002-2l2-12M3 5h18M9 5V3h6v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            <button className="permanent-delete-btn" onClick={() => onDelete(order.id)} title="Удалить навсегда">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
           </div>

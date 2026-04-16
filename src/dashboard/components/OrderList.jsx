@@ -8,7 +8,7 @@ export default function OrderList({
   searchQuery, setSearchQuery,
   statusFilter, setStatusFilter,
   openDropdown, setOpenDropdown, dropdownRef,
-  onStatusChange, onUpdateField, onArchive, onToggleTag, onShowHistory,
+  onStatusChange, onUpdateField, onArchive, onDelete, onToggleTag, onShowHistory,
   employees, timings,
 }) {
   const [paymentFilter, setPaymentFilter] = useState('all');
@@ -98,6 +98,7 @@ export default function OrderList({
               onStatusChange={onStatusChange}
               onUpdateField={onUpdateField}
               onArchive={onArchive}
+              onDelete={onDelete}
               onToggleTag={onToggleTag}
               onShowHistory={onShowHistory}
               employees={employees}
