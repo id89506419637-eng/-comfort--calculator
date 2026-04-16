@@ -26,8 +26,8 @@ export default function LogoSVG({ height = 48, color = '#ffffff', className = ''
 
       {/* КОМФОРТ+ */}
       <text
-        x="150"
-        y="180"
+        x="85"
+        y="222"
         fontFamily="Arial Black, Arial, Helvetica, sans-serif"
         fontWeight="900"
         fontSize="100"
@@ -35,7 +35,7 @@ export default function LogoSVG({ height = 48, color = '#ffffff', className = ''
       >КОМФОРТ+</text>
 
       {/* Горизонтальная линия от точки E под текстом */}
-      <line x1="150" y1="190" x2="720" y2="190" stroke={color} strokeWidth="3" />
+      <line x1="80" y1="232" x2="680" y2="232" stroke={color} strokeWidth="3" />
     </svg>
   );
 }
