@@ -218,10 +218,20 @@
 
 .dashboard-main {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 24px;
   padding: 0 16px 24px;
   min-height: 600px;
+}
+
+.dashboard-main > .orders-panel {
+  flex: 1;
+  min-width: 0;
+}
+
+.dashboard-main > .analytics-panel {
+  width: 340px;
+  flex-shrink: 0;
 }
 
 /* ===== ORDERS PANEL ===== */
@@ -459,8 +469,8 @@
 /* ===== ANALYTICS PANEL ===== */
 
 .analytics-panel {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 16px;
 }
 
@@ -1116,8 +1126,12 @@
 /* ===== RESPONSIVE ===== */
 
 @media (max-width: 1100px) {
-  .analytics-panel {
-    grid-template-columns: 1fr;
+  .dashboard-main {
+    flex-direction: column;
+  }
+
+  .dashboard-main > .analytics-panel {
+    width: 100%;
   }
 }
 
@@ -1163,9 +1177,6 @@
     gap: 8px;
   }
 
-  .analytics-panel {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* ===== LOGIN FORM ===== */
