@@ -14,7 +14,7 @@ export default function LogoSVG({ height = 48, color = '#ffffff', className = ''
       {/* Залитая левая грань */}
       <path d="M10,100 L80,140 L80,230 L10,190 Z" fill={color} />
       {/* Залитая верхняя левая грань (крыша) */}
-      <path d="M80,10 L10,105 L80,140 Z" fill={color} />
+      <path d="M80,10 L10,100 L80,140 Z" fill={color} />
 
       {/* Правая грань — контур (без грани EF) */}
       <path d="M80,140 L150,100 L150,190" stroke={color} strokeWidth="3" strokeLinejoin="round" fill="none" />
@@ -26,7 +26,7 @@ export default function LogoSVG({ height = 48, color = '#ffffff', className = ''
 
       {/* КОМФОРТ+ */}
       <text
-        x="170"
+        x="155"
         y="220"
         fontFamily="Arial Black, Arial, Helvetica, sans-serif"
         fontWeight="900"
@@ -34,8 +34,8 @@ export default function LogoSVG({ height = 48, color = '#ffffff', className = ''
         fill={color}
       >КОМФОРТ+</text>
 
-      {/* Линия из точки E под текстом */}
-      <path d="M150,190 L170,235 L720,235" stroke={color} strokeWidth="3" fill="none" />
+      {/* Горизонтальная линия от точки E под текстом */}
+      <line x1="150" y1="235" x2="720" y2="235" stroke={color} strokeWidth="3" />
     </svg>
   );
 }

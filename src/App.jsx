@@ -595,7 +595,7 @@ export default function App() {
     content.push({ text: 'Согласовано (габариты, комплектация) ____________', fontSize: 9, margin: [0, 16, 0, 0] });
 
     // Оферта
-    content.push({ text: 'Не является публичной офертой.', fontSize: 8, color: '#888', italics: true, margin: [0, 12, 0, 0] });
+    content.push({ text: 'Не является публичной офертой.', fontSize: 9, italics: true, margin: [0, 12, 0, 0] });
 
     const docDefinition = {
       pageSize: 'A4',
