@@ -128,39 +128,45 @@ export default function useOrders(period, customDate) {
     const existing = orders.find((o) => o.id === id);
     const oldStatus = existing?.status;
 
-    const { error } = await supabase.from('orders').update({ status: newStatus, ...extraData }).eq('id', id);
-    if (!error) {
-      // Сразу обновляем UI — не ждём логирования
-      setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status: newStatus, ...extraData } : o)));
-
-      // Логируем параллельно в фоне
-      const logPromises = [];
-      if (oldStatus !== newStatus) {
-        logPromises.push(logAction(id, 'status_change', {
-          oldValue: STATUS_LABELS[oldStatus] || oldStatus,
-          newValue: STATUS_LABELS[newStatus] || newStatus,
-          comment: extraData.order_comment || null,
-        }));
-      }
-
-      const fieldsToLog = ['final_sum', 'address', 'contractor', 'contract_number', 'invoice_number',
-        'manager', 'measurer', 'delivery_type', 'total_area', 'payment_status', 'paid_amount', 'production_percent'];
-      for (const field of fieldsToLog) {
-        if (extraData[field] === undefined) continue;
-        const oldVal = String(existing?.[field] ?? '');
-        const newVal = String(extraData[field] ?? '');
-        if (oldVal === newVal) continue;
-        logPromises.push(logAction(id, 'field_update', {
-          fieldName: field,
-          oldValue: oldVal,
-          newValue: newVal,
-        }));
-      }
-
-      Promise.all(logPromises);
-    }
+    // Оптимистичное обновление — сразу меняем UI
+    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status: newStatus, ...extraData } : o)));
     setModal(null);
     setModalData({});
+
+    const { error } = await supabase.from('orders').update({ status: newStatus, ...extraData }).eq('id', id);
+
+    if (error) {
+      // Откат при ошибке
+      setOrders((prev) => prev.map((o) => (o.id === id ? existing : o)));
+      alert('Не удалось сохранить изменения. Попробуйте ещё раз.');
+      return;
+    }
+
+    // Логируем параллельно в фоне
+    const logPromises = [];
+    if (oldStatus !== newStatus) {
+      logPromises.push(logAction(id, 'status_change', {
+        oldValue: STATUS_LABELS[oldStatus] || oldStatus,
+        newValue: STATUS_LABELS[newStatus] || newStatus,
+        comment: extraData.order_comment || null,
+      }));
+    }
+
+    const fieldsToLog = ['final_sum', 'address', 'contractor', 'contract_number', 'invoice_number',
+      'manager', 'measurer', 'delivery_type', 'total_area', 'payment_status', 'paid_amount', 'production_percent'];
+    for (const field of fieldsToLog) {
+      if (extraData[field] === undefined) continue;
+      const oldVal = String(existing?.[field] ?? '');
+      const newVal = String(extraData[field] ?? '');
+      if (oldVal === newVal) continue;
+      logPromises.push(logAction(id, 'field_update', {
+        fieldName: field,
+        oldValue: oldVal,
+        newValue: newVal,
+      }));
+    }
+
+    Promise.all(logPromises);
   };
 
   const submitModal = () => {
