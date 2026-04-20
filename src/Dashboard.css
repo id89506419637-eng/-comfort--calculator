@@ -1,16 +1,17 @@
 /* ===== DASHBOARD STYLES ===== */
 
+body:has(.dashboard) {
+  display: block;
+  align-items: unset;
+  justify-content: unset;
+}
+
 .dashboard {
   min-height: 100vh;
   width: 100vw;
   background: #111827;
   color: #e5e7eb;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  position: fixed;
-  top: 0;
-  left: 0;
-  overflow-y: auto;
-  z-index: 100;
 }
 
 /* ===== HEADER ===== */
