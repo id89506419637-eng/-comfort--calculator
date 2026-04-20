@@ -62,6 +62,36 @@ function calcEstimates(order, timings) {
   return { minDays, maxDays, totalHours: hoursDisplay };
 }
 
+function calcOverdue(order, estimates) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (order.status === 'in_work' && order.in_work_at && estimates) {
+    const startDate = new Date(order.in_work_at);
+    startDate.setHours(0, 0, 0, 0);
+    const daysElapsed = Math.floor((today - startDate) / (24 * 60 * 60 * 1000));
+    if (daysElapsed >= estimates.maxDays) {
+      return { level: 'overdue', text: `⚠ Производство просрочено на ${daysElapsed - estimates.maxDays + 1} дн.` };
+    }
+    if (daysElapsed >= estimates.minDays) {
+      return { level: 'warn', text: `⏰ Скоро срок: осталось ${estimates.maxDays - daysElapsed} дн.` };
+    }
+  }
+
+  if (order.status === 'install_scheduled' && order.install_date) {
+    const installDate = new Date(order.install_date);
+    installDate.setHours(0, 0, 0, 0);
+    const diffDays = Math.floor((installDate - today) / (24 * 60 * 60 * 1000));
+    if (diffDays < 0) {
+      return { level: 'overdue', text: `⚠ Монтаж просрочен на ${-diffDays} дн.` };
+    }
+    if (diffDays === 0) return { level: 'warn', text: '⏰ Монтаж сегодня' };
+    if (diffDays === 1) return { level: 'warn', text: '⏰ Монтаж завтра' };
+  }
+
+  return null;
+}
+
 export default function OrderCard({
   order,
   openDropdown,
@@ -80,6 +110,7 @@ export default function OrderCard({
   const sc = STATUS_COLORS[order.status] || STATUS_COLORS['new'];
   const showEstimates = order.status !== 'new' && order.status !== 'rejected' && order.status !== 'completed' && !isCompact;
   const estimates = showEstimates ? calcEstimates(order, timings) : null;
+  const overdue = calcOverdue(order, estimates);
   const [expanded, setExpanded] = useState(false);
 
   const paymentInfo = PAYMENT_STATUS[order.payment_status] || PAYMENT_STATUS['not_paid'];
@@ -185,7 +216,7 @@ export default function OrderCard({
 
   // ===== ПОЛНАЯ КАРТОЧКА (list view) =====
   return (
-    <div className="order-row">
+    <div className={`order-row${overdue ? ` order-${overdue.level}` : ''}`}>
       <div className="order-top">
         <div className="order-info">
           <span className="order-date">{formatDate(order.created_at)}</span>
@@ -198,6 +229,9 @@ export default function OrderCard({
           )}
           {order.manager && (
             <span className="order-manager-badge">{order.manager}</span>
+          )}
+          {overdue && (
+            <span className={`overdue-badge overdue-${overdue.level}`}>{overdue.text}</span>
           )}
         </div>
         <div className="order-right">

@@ -185,6 +185,7 @@ export default function useOrders(period, customDate) {
         manager: modalData.manager || null,
         delivery_type: modalData.delivery_type || 'install',
         order_comment: modalData.comment || null,
+        in_work_at: new Date().toISOString(),
       });
     } else if (type === 'measurement_scheduled') {
       if (!modalData.measurement_date) {
