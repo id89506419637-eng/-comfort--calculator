@@ -1907,6 +1907,24 @@
   color: #86efac;
 }
 
+.kanban-archive-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 8px;
+  background: rgba(156, 163, 175, 0.12);
+  border: 1px solid rgba(156, 163, 175, 0.25);
+  color: #9ca3af;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.kanban-archive-btn:hover {
+  background: rgba(156, 163, 175, 0.25);
+  color: #d1d5db;
+}
+
 /* ===== CALENDAR NAV BUTTON ===== */
 
 .calendar-nav-btn {

@@ -39,7 +39,18 @@ export default function useOrders(period, customDate) {
       console.error('Ошибка загрузки данных');
       if (!silent) setOrders([]);
     } else {
-      setOrders(data || []);
+      // Авто-архив отказов старше 30 дней
+      const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      const toArchive = (data || []).filter(
+        (o) => o.status === 'rejected' && new Date(o.rejected_at || o.created_at).getTime() < cutoff
+      );
+      if (toArchive.length > 0) {
+        const ids = toArchive.map((o) => o.id);
+        supabase.from('orders').update({ archived: true }).in('id', ids).then(() => {});
+        setOrders((data || []).filter((o) => !ids.includes(o.id)));
+      } else {
+        setOrders(data || []);
+      }
     }
     if (!silent) setLoading(false);
   }, [period, customDate]);
@@ -193,6 +204,7 @@ export default function useOrders(period, customDate) {
       updateStatus(orderId, 'rejected', {
         rejection_reason: modalData.rejection_reason || null,
         order_comment: modalData.comment || null,
+        rejected_at: new Date().toISOString(),
       });
     } else if (type === 'in_work') {
       updateStatus(orderId, 'in_work', {

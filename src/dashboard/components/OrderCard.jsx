@@ -235,6 +235,15 @@ export default function OrderCard({
               <span>Вернуть</span>
             </button>
           )}
+          {order.status === 'rejected' && (
+            <button
+              className="kanban-archive-btn"
+              onClick={() => onArchive(order.id)}
+              title="В архив"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 8l2 12a2 2 0 002 2h6a2 2 0 002-2l2-12M3 5h18M9 5V3h6v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </button>
+          )}
           {order.status === 'completed' && (
             <button
               className="kanban-close-btn"
