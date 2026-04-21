@@ -6,7 +6,11 @@ const DASHBOARD_URL = "https://comfort-calculator.vercel.app/#dashboard";
 
 serve(async (req) => {
   try {
+    const apiKey = Deno.env.get("RESEND_API_KEY");
+    console.log("API key present:", !!apiKey, "length:", apiKey?.length || 0);
+
     const payload = await req.json();
+    console.log("Payload received:", JSON.stringify(payload).slice(0, 500));
     const order = payload.record || payload;
 
     const itemsHtml = Array.isArray(order.items)
@@ -48,13 +52,18 @@ serve(async (req) => {
       }),
     });
 
+    console.log("Resend response status:", res.status);
     if (!res.ok) {
       const err = await res.text();
+      console.error("Resend error body:", err);
       return new Response(JSON.stringify({ ok: false, error: err }), { status: 500 });
     }
 
+    const result = await res.text();
+    console.log("Resend success:", result);
     return new Response(JSON.stringify({ ok: true }), { status: 200 });
   } catch (e) {
+    console.error("Function crashed:", e.message, e.stack);
     return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 500 });
   }
 });

@@ -484,11 +484,9 @@ export default function OrderCard({
               <label>Контрагент</label>
               <input
                 type="text"
-                value={order.contractor || ''}
+                defaultValue={order.contractor || ''}
                 placeholder="Подрядчик"
                 onBlur={(e) => onUpdateField(order.id, 'contractor', e.target.value || null)}
-                onChange={() => {}}
-                defaultValue={order.contractor || ''}
               />
             </div>
             <div className="expand-field">
