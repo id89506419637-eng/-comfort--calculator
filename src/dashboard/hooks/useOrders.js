@@ -53,9 +53,12 @@ export default function useOrders(period, customDate) {
   useEffect(() => { fetchOrders(); fetchEmployees(); }, [fetchOrders, fetchEmployees]);
 
   useEffect(() => {
-    const interval = setInterval(() => fetchOrders(true), 30000);
+    const interval = setInterval(() => {
+      fetchOrders(true);
+      fetchEmployees();
+    }, 30000);
     return () => clearInterval(interval);
-  }, [fetchOrders]);
+  }, [fetchOrders, fetchEmployees]);
 
   useEffect(() => {
     const handleClick = (e) => {
