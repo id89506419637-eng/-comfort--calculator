@@ -238,20 +238,41 @@ export default function useOrders(period, customDate) {
     }
   };
 
+  // Автоматический расчёт статуса оплаты по сумме
+  const calcPaymentStatus = (paidAmount, finalSum) => {
+    const paid = Number(paidAmount) || 0;
+    const total = Number(finalSum) || 0;
+    if (paid <= 0) return 'not_paid';
+    if (total > 0 && paid >= total) return 'paid';
+    return 'partial';
+  };
+
   // Обновить отдельное поле заказа (без смены статуса)
   const updateOrderField = async (id, field, value) => {
     const existing = orders.find((o) => o.id === id);
     const oldVal = String(existing?.[field] ?? '');
     const newVal = String(value ?? '');
     if (oldVal === newVal) return; // ничего не изменилось
-    const { error } = await supabase.from('orders').update({ [field]: value }).eq('id', id);
+
+    // Если меняется сумма оплаты или итоговая сумма — пересчитываем статус оплаты
+    const update = { [field]: value };
+    if (field === 'paid_amount' || field === 'final_sum') {
+      const paid = field === 'paid_amount' ? value : existing?.paid_amount;
+      const total = field === 'final_sum' ? value : existing?.final_sum;
+      const newStatus = calcPaymentStatus(paid, total);
+      if (newStatus !== existing?.payment_status) {
+        update.payment_status = newStatus;
+      }
+    }
+
+    const { error } = await supabase.from('orders').update(update).eq('id', id);
     if (!error) {
       await logAction(id, field === 'payment_status' || field === 'paid_amount' ? 'payment' : 'field_update', {
         fieldName: field,
         oldValue: oldVal,
         newValue: newVal,
       });
-      setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, [field]: value } : o)));
+      setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, ...update } : o)));
     }
   };
 
