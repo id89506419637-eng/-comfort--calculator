@@ -66,6 +66,27 @@ function calcOverdue(order, estimates) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  const MEASUREMENT_CLOSED = ['measurement_done', 'approval', 'in_work', 'production', 'install_scheduled', 'install_done', 'completed', 'rejected'];
+  const INSTALL_CLOSED = ['install_done', 'completed', 'rejected'];
+
+  if (order.measurement_date && !MEASUREMENT_CLOSED.includes(order.status)) {
+    const d = new Date(order.measurement_date);
+    d.setHours(0, 0, 0, 0);
+    const diffDays = Math.floor((d - today) / (24 * 60 * 60 * 1000));
+    if (diffDays < 0) return { level: 'overdue', text: `⚠ Замер просрочен на ${-diffDays} дн.` };
+    if (diffDays === 0) return { level: 'warn', text: '⏰ Замер сегодня' };
+    if (diffDays === 1) return { level: 'warn', text: '⏰ Замер завтра' };
+  }
+
+  if (order.install_date && !INSTALL_CLOSED.includes(order.status)) {
+    const d = new Date(order.install_date);
+    d.setHours(0, 0, 0, 0);
+    const diffDays = Math.floor((d - today) / (24 * 60 * 60 * 1000));
+    if (diffDays < 0) return { level: 'overdue', text: `⚠ Монтаж просрочен на ${-diffDays} дн.` };
+    if (diffDays === 0) return { level: 'warn', text: '⏰ Монтаж сегодня' };
+    if (diffDays === 1) return { level: 'warn', text: '⏰ Монтаж завтра' };
+  }
+
   if (order.status === 'in_work' && order.in_work_at && estimates) {
     const startDate = new Date(order.in_work_at);
     startDate.setHours(0, 0, 0, 0);
@@ -76,17 +97,6 @@ function calcOverdue(order, estimates) {
     if (daysElapsed >= estimates.minDays) {
       return { level: 'warn', text: `⏰ Скоро срок: осталось ${estimates.maxDays - daysElapsed} дн.` };
     }
-  }
-
-  if (order.status === 'install_scheduled' && order.install_date) {
-    const installDate = new Date(order.install_date);
-    installDate.setHours(0, 0, 0, 0);
-    const diffDays = Math.floor((installDate - today) / (24 * 60 * 60 * 1000));
-    if (diffDays < 0) {
-      return { level: 'overdue', text: `⚠ Монтаж просрочен на ${-diffDays} дн.` };
-    }
-    if (diffDays === 0) return { level: 'warn', text: '⏰ Монтаж сегодня' };
-    if (diffDays === 1) return { level: 'warn', text: '⏰ Монтаж завтра' };
   }
 
   return null;
