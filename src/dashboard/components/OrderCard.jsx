@@ -128,7 +128,9 @@ export default function OrderCard({
 
   if (isCompact) {
     const transitions = STATUS_TRANSITIONS[order.status] || [];
-    const nextStep = transitions.find(t => t !== 'rejected');
+    const nonRejected = transitions.filter(t => t !== 'rejected');
+    const nextStep = nonRejected[0];
+    const prevStep = nonRejected[1];
     const canReject = transitions.includes('rejected');
 
     return (
@@ -190,6 +192,15 @@ export default function OrderCard({
         )}
 
         <div className="kanban-card-actions">
+          {prevStep && (
+            <button
+              className="kanban-back-btn"
+              onClick={() => onStatusChange(order.id, prevStep)}
+              title={`Откатить в: ${STATUS_LABELS[prevStep]}`}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </button>
+          )}
           {nextStep && (
             <button
               className="kanban-next-btn"
@@ -372,6 +383,9 @@ export default function OrderCard({
         {order.measurer && (
           <span className="order-measurer-badge">Замерщик: {order.measurer}</span>
         )}
+        {order.installer && (
+          <span className="order-installer-badge">Монтажник: {order.installer}</span>
+        )}
         {order.measurement_date && (
           <span className="order-measurement-date">Замер: {order.measurement_date.slice(8)}.{order.measurement_date.slice(5,7)}{order.measurement_time ? ` в ${order.measurement_time}` : ''}</span>
         )}
@@ -476,6 +490,18 @@ export default function OrderCard({
               >
                 <option value="">— не назначен —</option>
                 {(employees || []).filter(e => e.role === 'measurer' || e.role === 'installer').map(e => (
+                  <option key={e.id} value={e.name}>{e.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="expand-field">
+              <label>Монтажник</label>
+              <select
+                value={order.installer || ''}
+                onChange={(e) => onUpdateField(order.id, 'installer', e.target.value || null)}
+              >
+                <option value="">— не назначен —</option>
+                {(employees || []).filter(e => e.role === 'installer').map(e => (
                   <option key={e.id} value={e.name}>{e.name}</option>
                 ))}
               </select>

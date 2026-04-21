@@ -1862,6 +1862,24 @@
   color: #fcd34d;
 }
 
+.kanban-back-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 8px;
+  background: rgba(156, 163, 175, 0.12);
+  border: 1px solid rgba(156, 163, 175, 0.25);
+  color: #9ca3af;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.kanban-back-btn:hover {
+  background: rgba(156, 163, 175, 0.25);
+  color: #d1d5db;
+}
+
 .kanban-close-btn {
   flex: 1;
   display: flex;
@@ -3170,4 +3188,29 @@ select option,
 
 .emp-delete-btn:hover {
   background: rgba(239, 68, 68, 0.25);
+}
+
+/* ===== ORDER BADGE STYLES ===== */
+
+.order-measurer-badge,
+.order-installer-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.order-measurer-badge {
+  background: rgba(139, 92, 246, 0.12);
+  color: #a78bfa;
+  border: 1px solid rgba(139, 92, 246, 0.25);
+}
+
+.order-installer-badge {
+  background: rgba(6, 182, 212, 0.12);
+  color: #22d3ee;
+  border: 1px solid rgba(6, 182, 212, 0.25);
 }

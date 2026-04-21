@@ -27,16 +27,16 @@ export const STATUS_COLORS = {
 // Порядок статусов в воронке (без rejected — он особый)
 export const STATUS_ORDER = ['new', 'measurement_scheduled', 'measurement_done', 'approval', 'production', 'install_scheduled', 'install_done', 'completed'];
 
-// Какие переходы допустимы из каждого статуса (с возможностью отката на шаг назад)
+// Переходы статусов. Порядок: [вперёд, назад, rejected]. Канбан берёт [0] как "следующий шаг".
 export const STATUS_TRANSITIONS = {
   'new': ['measurement_scheduled', 'approval', 'rejected'],
   'in_work': ['measurement_scheduled', 'approval', 'rejected'],
-  'measurement_scheduled': ['new', 'measurement_done', 'rejected'],
-  'measurement_done': ['measurement_scheduled', 'approval', 'rejected'],
-  'approval': ['measurement_done', 'production', 'rejected'],
-  'production': ['approval', 'install_scheduled', 'rejected'],
-  'install_scheduled': ['production', 'install_done', 'rejected'],
-  'install_done': ['install_scheduled', 'completed', 'rejected'],
+  'measurement_scheduled': ['measurement_done', 'new', 'rejected'],
+  'measurement_done': ['approval', 'measurement_scheduled', 'rejected'],
+  'approval': ['production', 'measurement_done', 'rejected'],
+  'production': ['install_scheduled', 'approval', 'rejected'],
+  'install_scheduled': ['install_done', 'production', 'rejected'],
+  'install_done': ['completed', 'install_scheduled', 'rejected'],
   'completed': ['install_done'],
   'rejected': ['new'],
 };
