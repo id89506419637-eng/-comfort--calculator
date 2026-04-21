@@ -238,10 +238,11 @@ export default function useOrders(period, customDate) {
     }
   };
 
-  // Автоматический расчёт статуса оплаты по сумме
-  const calcPaymentStatus = (paidAmount, finalSum) => {
+  // Автоматический расчёт статуса оплаты. Если final_sum не задан,
+  // используем price_max (верх вилки калькулятора) как цель.
+  const calcPaymentStatus = (paidAmount, finalSum, priceMax) => {
     const paid = Number(paidAmount) || 0;
-    const total = Number(finalSum) || 0;
+    const total = Number(finalSum) || Number(priceMax) || 0;
     if (paid <= 0) return 'not_paid';
     if (total > 0 && paid >= total) return 'paid';
     return 'partial';
@@ -259,7 +260,7 @@ export default function useOrders(period, customDate) {
     if (field === 'paid_amount' || field === 'final_sum') {
       const paid = field === 'paid_amount' ? value : existing?.paid_amount;
       const total = field === 'final_sum' ? value : existing?.final_sum;
-      const newStatus = calcPaymentStatus(paid, total);
+      const newStatus = calcPaymentStatus(paid, total, existing?.price_max);
       if (newStatus !== existing?.payment_status) {
         update.payment_status = newStatus;
       }
