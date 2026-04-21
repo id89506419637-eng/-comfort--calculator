@@ -272,6 +272,62 @@ export default function StatusModal({ modal, modalData, setModalData, employees,
     );
   }
 
+  if (modal.type === 'production') {
+    const total = Number(modalData.final_sum) || 0;
+    const paid = Number(modalData.paid_amount) || 0;
+    const pct = total > 0 ? Math.round((paid / total) * 100) : 0;
+    return (
+      <div className="modal-overlay" onClick={onClose}>
+        <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+          <h3 className="modal-title">В производство</h3>
+          <div className="modal-grid">
+            <div className="modal-field">
+              <label>Итоговая сумма заказа (₽) *</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="Обязательно"
+                value={modalData.final_sum || ''}
+                onChange={(e) => setModalData({ ...modalData, final_sum: e.target.value })}
+                style={{ borderColor: !modalData.final_sum ? 'rgba(239, 68, 68, 0.5)' : undefined }}
+              />
+            </div>
+            <div className="modal-field">
+              <label>Оплачено (₽)</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="0"
+                value={modalData.paid_amount || ''}
+                onChange={(e) => setModalData({ ...modalData, paid_amount: e.target.value })}
+              />
+            </div>
+          </div>
+          {total > 0 && (
+            <div style={{ margin: '8px 0', fontSize: '13px', color: '#9ca3af' }}>
+              Оплата: <span style={{ color: pct >= 100 ? '#22c55e' : pct > 0 ? '#eab308' : '#ef4444', fontWeight: 600 }}>
+                {paid.toLocaleString('ru-RU')} из {total.toLocaleString('ru-RU')} ₽ ({pct}%)
+              </span>
+            </div>
+          )}
+          <div className="modal-field">
+            <label>Комментарий</label>
+            <textarea
+              placeholder="Примечания (необязательно)"
+              value={modalData.comment || ''}
+              onChange={(e) => setModalData({ ...modalData, comment: e.target.value })}
+              rows={2}
+            />
+          </div>
+          <div className="modal-buttons">
+            <button className="modal-btn-cancel" onClick={onClose}>Отмена</button>
+            <button className="modal-btn-confirm" onClick={onSubmit}>В производство</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (modal.type === 'install_scheduled') {
     return (
       <div className="modal-overlay" onClick={onClose}>

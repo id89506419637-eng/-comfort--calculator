@@ -113,6 +113,14 @@ export default function useOrders(period, customDate) {
         comment: '',
       });
       setModal({ type: 'approval', orderId: id });
+    } else if (newStatus === 'production') {
+      setModalData({
+        final_sum: existing?.final_sum || '',
+        payment_status: existing?.payment_status || 'not_paid',
+        paid_amount: existing?.paid_amount || '',
+        comment: '',
+      });
+      setModal({ type: 'production', orderId: id });
     } else if (newStatus === 'install_scheduled') {
       setModalData({
         install_date: existing?.install_date || '',
@@ -218,6 +226,20 @@ export default function useOrders(period, customDate) {
       updateStatus(orderId, 'approval', {
         invoice_number: modalData.invoice_number || null,
         final_sum: modalData.final_sum ? Number(modalData.final_sum) : null,
+        order_comment: modalData.comment || null,
+      });
+    } else if (type === 'production') {
+      if (!modalData.final_sum) {
+        alert('Укажите итоговую сумму заказа');
+        return;
+      }
+      const paid = Number(modalData.paid_amount) || 0;
+      const total = Number(modalData.final_sum);
+      const payStatus = calcPaymentStatus(paid, total, null);
+      updateStatus(orderId, 'production', {
+        final_sum: total,
+        paid_amount: paid || null,
+        payment_status: payStatus,
         order_comment: modalData.comment || null,
       });
     } else if (type === 'install_scheduled') {

@@ -159,6 +159,12 @@ export default function OrderCard({
           <span className="kanban-payment" style={{ color: paymentInfo.color, background: paymentInfo.bg }}>
             {paymentInfo.label}
           </span>
+          {order.final_sum && order.paid_amount > 0 && order.payment_status === 'partial' && (
+            <span className="kanban-pay-progress">
+              {Number(order.paid_amount).toLocaleString('ru-RU')} / {Number(order.final_sum).toLocaleString('ru-RU')} ₽
+              ({Math.round((Number(order.paid_amount) / Number(order.final_sum)) * 100)}%)
+            </span>
+          )}
           {order.production_percent > 0 && (
             <span className="kanban-production">
               {order.production_percent}%
