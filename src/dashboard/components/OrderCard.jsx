@@ -219,6 +219,16 @@ export default function OrderCard({
               <span>Вернуть</span>
             </button>
           )}
+          {order.status === 'completed' && (
+            <button
+              className="kanban-close-btn"
+              onClick={() => onArchive(order.id)}
+              title="Закрыть заявку и отправить в архив"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              <span>Закрыть заявку</span>
+            </button>
+          )}
         </div>
       </div>
     );

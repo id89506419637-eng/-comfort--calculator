@@ -25,14 +25,14 @@ export const STATUS_COLORS = {
 };
 
 // Порядок статусов в воронке (без rejected — он особый)
-export const STATUS_ORDER = ['new', 'in_work', 'measurement_scheduled', 'measurement_done', 'approval', 'production', 'install_scheduled', 'install_done', 'completed'];
+export const STATUS_ORDER = ['new', 'measurement_scheduled', 'measurement_done', 'approval', 'production', 'install_scheduled', 'install_done', 'completed'];
 
 // Какие переходы допустимы из каждого статуса
 export const STATUS_TRANSITIONS = {
-  'new': ['measurement_scheduled', 'in_work', 'rejected'],
+  'new': ['measurement_scheduled', 'approval', 'rejected'],
   'in_work': ['measurement_scheduled', 'approval', 'rejected'],
   'measurement_scheduled': ['measurement_done', 'rejected'],
-  'measurement_done': ['approval', 'in_work', 'rejected'],
+  'measurement_done': ['approval', 'rejected'],
   'approval': ['production', 'rejected'],
   'production': ['install_scheduled', 'rejected'],
   'install_scheduled': ['install_done', 'rejected'],

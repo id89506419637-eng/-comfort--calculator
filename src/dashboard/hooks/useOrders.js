@@ -117,6 +117,7 @@ export default function useOrders(period, customDate) {
       setModalData({
         install_date: existing?.install_date || '',
         install_time: existing?.install_time || '',
+        installer: existing?.installer || '',
         comment: existing?.order_comment || '',
       });
       setModal({ type: 'install_scheduled', orderId: id });
@@ -156,7 +157,7 @@ export default function useOrders(period, customDate) {
     }
 
     const fieldsToLog = ['final_sum', 'address', 'contractor', 'contract_number', 'invoice_number',
-      'manager', 'measurer', 'delivery_type', 'total_area', 'payment_status', 'paid_amount', 'production_percent'];
+      'manager', 'measurer', 'installer', 'delivery_type', 'total_area', 'payment_status', 'paid_amount', 'production_percent'];
     for (const field of fieldsToLog) {
       if (extraData[field] === undefined) continue;
       const oldVal = String(existing?.[field] ?? '');
@@ -227,6 +228,7 @@ export default function useOrders(period, customDate) {
       updateStatus(orderId, 'install_scheduled', {
         install_date: modalData.install_date || null,
         install_time: modalData.install_time || null,
+        installer: modalData.installer || null,
         order_comment: modalData.comment || null,
       });
     } else {

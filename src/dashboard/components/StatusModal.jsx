@@ -72,6 +72,9 @@ export default function StatusModal({ modal, modalData, setModalData, employees,
               <label>Контрагент</label>
               <input
                 type="text"
+                name="contractor"
+                autoComplete="off"
+                spellCheck="false"
                 placeholder="Подрядчик / заказчик"
                 value={modalData.contractor || ''}
                 onChange={(e) => setModalData({ ...modalData, contractor: e.target.value })}
@@ -81,6 +84,9 @@ export default function StatusModal({ modal, modalData, setModalData, employees,
               <label>№ договора</label>
               <input
                 type="text"
+                name="contract_number"
+                autoComplete="off"
+                spellCheck="false"
                 placeholder="дог 75/26"
                 value={modalData.contract_number || ''}
                 onChange={(e) => setModalData({ ...modalData, contract_number: e.target.value })}
@@ -287,6 +293,18 @@ export default function StatusModal({ modal, modalData, setModalData, employees,
                 value={modalData.install_time || ''}
                 onChange={(e) => setModalData({ ...modalData, install_time: e.target.value })}
               />
+            </div>
+            <div className="modal-field">
+              <label>Монтажник</label>
+              <select
+                value={modalData.installer || ''}
+                onChange={(e) => setModalData({ ...modalData, installer: e.target.value })}
+              >
+                <option value="">— выбрать —</option>
+                {measurers.map(e => (
+                  <option key={e.id} value={e.name}>{e.name}</option>
+                ))}
+              </select>
             </div>
           </div>
           <div className="modal-field">
