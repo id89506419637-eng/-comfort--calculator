@@ -126,10 +126,30 @@ export function exportToPDF(orders) {
 </body>
 </html>`;
 
-  const printWindow = window.open('', '_blank');
-  printWindow.document.write(html);
-  printWindow.document.close();
-  printWindow.onload = () => {
-    printWindow.print();
+  // Используем iframe вместо window.open — не блокируется popup-блокерами
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = 'none';
+  iframe.style.opacity = '0';
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentDocument || iframe.contentWindow.document;
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  iframe.onload = () => {
+    setTimeout(() => {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+      // Удаляем iframe после печати
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+      }, 1000);
+    }, 300);
   };
 }
