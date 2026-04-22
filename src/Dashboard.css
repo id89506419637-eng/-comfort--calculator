@@ -3408,25 +3408,24 @@ select option,
 /* ===== ARCHIVE NAV BUTTON ===== */
 
 .archive-nav-btn {
-  padding: 8px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.05);
-  color: #e5e7eb;
-  font-size: 13px;
-  font-weight: 500;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
   display: flex;
   align-items: center;
   gap: 6px;
+  padding: 6px 14px;
+  background: rgba(249, 115, 22, 0.15);
+  color: #f97316;
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
   white-space: nowrap;
+  font-family: inherit;
 }
 
 .archive-nav-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #f9fafb;
-  transform: translateY(-1px);
+  background: rgba(249, 115, 22, 0.25);
 }
 
 /* ===== ARCHIVE PANEL ===== */
