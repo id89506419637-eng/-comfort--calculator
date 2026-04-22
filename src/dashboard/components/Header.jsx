@@ -1,6 +1,6 @@
 import { PERIOD_OPTIONS } from '../constants.js';
 import LogoSVG from '../../LogoSVG.jsx';
-import { exportToExcel, exportToPDF } from '../export.js';
+import ExportDropdown from './ExportDropdown.jsx';
 
 export default function Header({ 
   orders,
@@ -92,14 +92,7 @@ export default function Header({
         </button>
         <button onClick={onShowSummary} className="summary-btn">Итоги</button>
         
-        <button onClick={() => exportToExcel(orders)} className="export-nav-btn excel" title="Скачать Excel">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ marginRight: 4 }}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" strokeWidth="2"/><path d="M14 2v6h6M8 13h8M8 17h8M10 9h1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          Excel
-        </button>
-        <button onClick={() => exportToPDF(orders)} className="export-nav-btn pdf" title="Печать PDF">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ marginRight: 4 }}><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2" stroke="currentColor" strokeWidth="2"/><path d="M6 14h12v8H6z" stroke="currentColor" strokeWidth="2"/></svg>
-          PDF
-        </button>
+        <ExportDropdown orders={orders} />
         <button onClick={onShowPassword} className="password-btn" title="Сменить пароль">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" strokeWidth="2"/><path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
         </button>

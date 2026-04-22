@@ -100,10 +100,15 @@
   box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
 }
 
-/* Экспорт */
-.export-nav-btn {
-  padding: 8px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+/* ===== EXPORT DROPDOWN ===== */
+
+.export-dropdown-wrapper {
+  position: relative;
+}
+
+.export-trigger-btn {
+  padding: 8px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.05);
   color: #e5e7eb;
   font-size: 13px;
@@ -113,32 +118,188 @@
   transition: all 0.2s;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
+  white-space: nowrap;
 }
 
-.export-nav-btn:hover {
+.export-trigger-btn:hover {
   background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
   transform: translateY(-1px);
 }
 
-.export-nav-btn.excel {
+.export-trigger-btn.active {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.4);
+  color: #60a5fa;
+}
+
+.export-dropdown-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  background: #1f2937;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 16px;
+  min-width: 300px;
+  z-index: 200;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  animation: exportDropIn 0.2s ease-out;
+}
+
+@keyframes exportDropIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.export-dropdown-section {
+  margin-bottom: 14px;
+}
+
+.export-dropdown-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+
+.export-period-selector {
+  display: flex;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  padding: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.export-period-btn {
+  flex: 1;
+  padding: 6px 8px;
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.export-period-btn:hover {
+  color: #e5e7eb;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.export-period-btn.active {
+  background: #3b82f6;
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+}
+
+.export-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #d1d5db;
+  cursor: pointer;
+  padding: 6px 0;
+  user-select: none;
+  transition: color 0.15s;
+}
+
+.export-checkbox-label:hover {
+  color: #f9fafb;
+}
+
+.export-checkbox {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  background: transparent;
+}
+
+.export-checkbox.checked {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: #fff;
+}
+
+.export-dropdown-count {
+  font-size: 12px;
+  color: #6b7280;
+  padding: 8px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  margin-bottom: 12px;
+}
+
+.export-dropdown-count strong {
+  color: #e5e7eb;
+  font-weight: 600;
+}
+
+.export-dropdown-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.export-action-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: #e5e7eb;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.export-action-btn:hover {
+  transform: translateY(-1px);
+}
+
+.export-action-btn.excel {
   color: #4ade80;
   border-color: rgba(74, 222, 128, 0.2);
 }
 
-.export-nav-btn.excel:hover {
-  background: rgba(74, 222, 128, 0.1);
+.export-action-btn.excel:hover {
+  background: rgba(74, 222, 128, 0.12);
   border-color: rgba(74, 222, 128, 0.4);
+  box-shadow: 0 4px 16px rgba(74, 222, 128, 0.15);
 }
 
-.export-nav-btn.pdf {
+.export-action-btn.pdf {
   color: #60a5fa;
   border-color: rgba(96, 165, 250, 0.2);
 }
 
-.export-nav-btn.pdf:hover {
-  background: rgba(96, 165, 250, 0.1);
+.export-action-btn.pdf:hover {
+  background: rgba(96, 165, 250, 0.12);
   border-color: rgba(96, 165, 250, 0.4);
+  box-shadow: 0 4px 16px rgba(96, 165, 250, 0.15);
 }
 
 /* ===== STATS ROW ===== */
