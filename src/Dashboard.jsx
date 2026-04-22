@@ -16,6 +16,7 @@ import PricesPanel from './dashboard/components/PricesPanel.jsx';
 import CalendarPanel from './dashboard/components/CalendarPanel.jsx';
 import MapPanel from './dashboard/components/MapPanel.jsx';
 import HistoryPanel from './dashboard/components/HistoryPanel.jsx';
+import ArchivePanel from './dashboard/components/ArchivePanel.jsx';
 import './Dashboard.css';
 
 export default function Dashboard() {
@@ -44,6 +45,7 @@ function DashboardContent({ onLogout, onChangePassword }) {
   const [showPrices, setShowPrices] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [showMap, setShowMap] = useState(false);
+  const [showArchive, setShowArchive] = useState(false);
   const [historyOrderId, setHistoryOrderId] = useState(null);
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'kanban'
   const { timings } = useTimings();
@@ -123,6 +125,14 @@ function DashboardContent({ onLogout, onChangePassword }) {
     );
   }
 
+  if (showArchive) {
+    return (
+      <div className="dashboard">
+        <ArchivePanel onBack={() => setShowArchive(false)} />
+      </div>
+    );
+  }
+
   return (
     <div className="dashboard">
       <Header
@@ -135,6 +145,7 @@ function DashboardContent({ onLogout, onChangePassword }) {
         onShowPrices={() => setShowPrices(true)}
         onShowCalendar={() => setShowCalendar(true)}
         onShowMap={() => setShowMap(true)}
+        onShowArchive={() => setShowArchive(true)}
         onShowPassword={() => setShowPassword(true)}
         onLogout={onLogout}
         viewMode={viewMode}

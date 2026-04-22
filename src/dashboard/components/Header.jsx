@@ -5,7 +5,7 @@ import ExportDropdown from './ExportDropdown.jsx';
 export default function Header({ 
   orders,
   period, setPeriod, customDate, setCustomDate, 
-  onShowSummary, onShowPassword, onShowPrices, onShowCalendar, onShowMap, onLogout, 
+  onShowSummary, onShowPassword, onShowPrices, onShowCalendar, onShowMap, onShowArchive, onLogout, 
   viewMode, setViewMode 
 }) {
   return (
@@ -89,6 +89,10 @@ export default function Header({
         <button onClick={onShowMap} className="map-nav-btn">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" stroke="currentColor" strokeWidth="2"/><circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="2"/></svg>
           Карта
+        </button>
+        <button onClick={onShowArchive} className="archive-nav-btn" title="Архив заказов">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          Архив
         </button>
         <button onClick={onShowSummary} className="summary-btn">Итоги</button>
         
