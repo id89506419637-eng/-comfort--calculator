@@ -30,6 +30,7 @@ export default function ExportDropdown({ orders }) {
   const [open, setOpen] = useState(false);
   const [exportPeriod, setExportPeriod] = useState('all');
   const [includeCompleted, setIncludeCompleted] = useState(true);
+  const [includeRejected, setIncludeRejected] = useState(true);
   const ref = useRef(null);
 
   useEffect(() => {
@@ -54,9 +55,14 @@ export default function ExportDropdown({ orders }) {
       });
     }
 
-    // Фильтр выполненных
+    // Фильтр завершённых
     if (!includeCompleted) {
-      filtered = filtered.filter(o => o.status !== 'completed' && o.status !== 'rejected');
+      filtered = filtered.filter(o => o.status !== 'completed');
+    }
+
+    // Фильтр отказов
+    if (!includeRejected) {
+      filtered = filtered.filter(o => o.status !== 'rejected');
     }
 
     return filtered;
@@ -120,7 +126,17 @@ export default function ExportDropdown({ orders }) {
                   </svg>
                 )}
               </span>
-              Включить завершённые и отказы
+              Завершённые заказы
+            </label>
+            <label className="export-checkbox-label" onClick={() => setIncludeRejected(!includeRejected)}>
+              <span className={`export-checkbox ${includeRejected ? 'checked' : ''}`}>
+                {includeRejected && (
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+                    <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )}
+              </span>
+              Отказы
             </label>
           </div>
 
