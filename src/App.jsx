@@ -768,6 +768,13 @@ export default function App() {
           </div>
         )}
 
+        {inlineError && (
+          <div className="inline-error">
+            <span className="inline-error-icon">⚠</span>
+            {inlineError}
+          </div>
+        )}
+
         <div className="button-row">
           <button className="pdf-btn" onClick={generatePDF}>
             Скачать КП (PDF)
@@ -776,13 +783,6 @@ export default function App() {
             {submitting ? 'Отправка...' : 'Оставить заявку на точный расчет'}
           </button>
         </div>
-
-        {inlineError && (
-          <div className="inline-error">
-            <span className="inline-error-icon">⚠</span>
-            {inlineError}
-          </div>
-        )}
       </div>
 
       {successModal && (
