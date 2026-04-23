@@ -41,8 +41,13 @@ function getCalendarDays(year, month) {
 
 function extractEvents(orders) {
   const events = [];
+  // Статусы, при которых замер ещё актуален
+  const measurementStatuses = ['measurement_scheduled'];
+  // Статусы, при которых монтаж ещё актуален
+  const installStatuses = ['install_scheduled'];
+
   orders.forEach(order => {
-    if (order.measurement_date) {
+    if (order.measurement_date && measurementStatuses.includes(order.status)) {
       events.push({
         type: 'measurement',
         date: order.measurement_date,
@@ -50,7 +55,7 @@ function extractEvents(orders) {
         order,
       });
     }
-    if (order.install_date) {
+    if (order.install_date && installStatuses.includes(order.status)) {
       events.push({
         type: 'install',
         date: order.install_date,
