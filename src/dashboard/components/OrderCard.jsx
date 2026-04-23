@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { STATUS_LABELS, STATUS_COLORS, ORDER_TAGS, STATUS_TRANSITIONS, PAYMENT_STATUS, DELIVERY_TYPES } from '../constants.js';
 import { formatDate, formatMoney, itemsSummary } from '../utils.js';
+import { openOrderKP } from '../orderKP.js';
 
 function calcEstimates(order, timings) {
   if (!timings || !order.items || !Array.isArray(order.items)) return null;
@@ -145,6 +146,9 @@ export default function OrderCard({
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </a>
           )}
+          <button className="kanban-kp-btn" onClick={(e) => { e.stopPropagation(); openOrderKP(order); }} title="Открыть КП">
+            КП
+          </button>
         </div>
 
         <div className="kanban-card-main">
@@ -540,6 +544,10 @@ export default function OrderCard({
             })}
           </div>
           <div className="order-action-btns">
+            {/* Кнопка КП */}
+            <button className="kp-btn" onClick={() => openOrderKP(order)} title="Открыть коммерческое предложение">
+              КП
+            </button>
             {/* Кнопка развернуть/редактировать */}
             <button className="edit-btn" onClick={() => setExpanded(!expanded)} title="Редактировать поля">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
