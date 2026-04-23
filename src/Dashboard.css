@@ -3107,6 +3107,37 @@
   overflow-wrap: anywhere;
 }
 
+.kanban-context-editable {
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 1px 4px;
+  margin: -1px -4px;
+  transition: background 0.15s ease;
+  border-bottom: 1px dashed rgba(148, 163, 184, 0.4);
+}
+
+.kanban-context-editable:hover {
+  background: rgba(59, 130, 246, 0.15);
+  color: #fff;
+}
+
+.kanban-context-select {
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  border: 1px solid rgba(59, 130, 246, 0.5);
+  border-radius: 4px;
+  padding: 3px 5px;
+  font-size: 11px;
+  font-family: 'Inter', sans-serif;
+  outline: none;
+  width: 100%;
+}
+
+.kanban-context-select option {
+  background: #1e293b;
+  color: #fff;
+}
+
 /* ===== MODAL WIDE (for in_work form) ===== */
 
 .modal-box-wide {

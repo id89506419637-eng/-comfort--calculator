@@ -122,6 +122,7 @@ export default function OrderCard({
   const estimates = showEstimates ? calcEstimates(order, timings) : null;
   const overdue = calcOverdue(order, estimates);
   const [expanded, setExpanded] = useState(false);
+  const [editingEmpField, setEditingEmpField] = useState(null);
 
   const paymentInfo = PAYMENT_STATUS[order.payment_status] || PAYMENT_STATUS['not_paid'];
   const deliveryInfo = DELIVERY_TYPES[order.delivery_type] || DELIVERY_TYPES['install'];
@@ -176,32 +177,68 @@ export default function OrderCard({
         </div>
 
         {(() => {
-          const rows = [];
-          if (order.status === 'measurement_scheduled') {
-            if (order.measurement_date) {
-              const d = order.measurement_date;
-              const dateStr = `${d.slice(8)}.${d.slice(5, 7)}.${d.slice(2, 4)}`;
-              rows.push(order.measurement_time ? `${dateStr} в ${order.measurement_time}` : dateStr);
-            }
-            if (order.measurer) rows.push(order.measurer);
-            if (order.address) rows.push(order.address);
-          } else if (order.status === 'install_scheduled') {
-            if (order.install_date) {
-              const d = order.install_date;
-              const dateStr = `${d.slice(8)}.${d.slice(5, 7)}.${d.slice(2, 4)}`;
-              rows.push(order.install_time ? `${dateStr} в ${order.install_time}` : dateStr);
-            }
-            if (order.installer) rows.push(order.installer);
-            if (order.address) rows.push(order.address);
-          } else if (order.status === 'in_work' || order.status === 'measurement_done' || order.status === 'approval' || order.status === 'production') {
-            if (order.address) rows.push(order.address);
+          const isMeasurementStage = order.status === 'measurement_scheduled';
+          const isInstallStage = order.status === 'install_scheduled';
+          const showAddress = isMeasurementStage || isInstallStage || order.status === 'in_work' || order.status === 'measurement_done' || order.status === 'approval' || order.status === 'production';
+
+          const empField = isMeasurementStage ? 'measurer' : isInstallStage ? 'installer' : null;
+          const empValue = empField ? order[empField] : null;
+          const empOptions = empField === 'measurer'
+            ? (employees || []).filter(e => e.role === 'measurer' || e.role === 'installer')
+            : empField === 'installer'
+            ? (employees || []).filter(e => e.role === 'installer')
+            : [];
+
+          const hasDate = (isMeasurementStage && order.measurement_date) || (isInstallStage && order.install_date);
+          const hasEmp = !!empField;
+          const hasAddr = showAddress && order.address;
+
+          if (!hasDate && !hasEmp && !hasAddr) return null;
+
+          let dateStr = null;
+          if (isMeasurementStage && order.measurement_date) {
+            const d = order.measurement_date;
+            dateStr = `${d.slice(8)}.${d.slice(5, 7)}.${d.slice(2, 4)}`;
+            if (order.measurement_time) dateStr += ` в ${order.measurement_time}`;
+          } else if (isInstallStage && order.install_date) {
+            const d = order.install_date;
+            dateStr = `${d.slice(8)}.${d.slice(5, 7)}.${d.slice(2, 4)}`;
+            if (order.install_time) dateStr += ` в ${order.install_time}`;
           }
-          if (rows.length === 0) return null;
+
+          const isEditingEmp = editingEmpField === empField;
+
           return (
             <div className="kanban-context">
-              {rows.map((text, i) => (
-                <div key={i} className="kanban-context-row">{text}</div>
-              ))}
+              {dateStr && <div className="kanban-context-row">{dateStr}</div>}
+              {empField && (
+                isEditingEmp ? (
+                  <select
+                    className="kanban-context-select"
+                    value={empValue || ''}
+                    autoFocus
+                    onBlur={() => setEditingEmpField(null)}
+                    onChange={(e) => {
+                      onUpdateField(order.id, empField, e.target.value || null);
+                      setEditingEmpField(null);
+                    }}
+                  >
+                    <option value="">— не назначен —</option>
+                    {empOptions.map(e => (
+                      <option key={e.id} value={e.name}>{e.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <div
+                    className="kanban-context-row kanban-context-editable"
+                    onClick={(ev) => { ev.stopPropagation(); setEditingEmpField(empField); }}
+                    title="Изменить"
+                  >
+                    {empValue || '— не назначен —'}
+                  </div>
+                )
+              )}
+              {hasAddr && <div className="kanban-context-row">{order.address}</div>}
             </div>
           );
         })()}

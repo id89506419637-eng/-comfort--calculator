@@ -201,6 +201,7 @@ function DashboardContent({ onLogout, onChangePassword }) {
           <KanbanBoard
             orders={orders}
             onStatusChange={handleStatusChange}
+            onUpdateField={updateOrderField}
             onArchive={archiveOrder}
             onToggleTag={toggleTag}
             employees={employees}

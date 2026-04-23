@@ -5,6 +5,7 @@ import OrderCard from './OrderCard.jsx';
 export default function KanbanBoard({
   orders,
   onStatusChange,
+  onUpdateField,
   onArchive,
   onToggleTag,
   employees,
@@ -57,6 +58,7 @@ export default function KanbanBoard({
                     order={order}
                     isCompact={true}
                     onStatusChange={onStatusChange}
+                    onUpdateField={onUpdateField}
                     onArchive={onArchive}
                     onToggleTag={onToggleTag}
                     employees={employees}
