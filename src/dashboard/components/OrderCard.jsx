@@ -178,6 +178,40 @@ export default function OrderCard({
           {itemsSummary(order.items)}
         </div>
 
+        {(() => {
+          const rows = [];
+          if (order.status === 'measurement_scheduled') {
+            if (order.measurement_date) {
+              const d = order.measurement_date;
+              const dateStr = `${d.slice(8)}.${d.slice(5, 7)}.${d.slice(2, 4)}`;
+              rows.push({ icon: '📅', text: order.measurement_time ? `${dateStr} в ${order.measurement_time}` : dateStr });
+            }
+            if (order.measurer) rows.push({ icon: '👤', text: `Замерщик: ${order.measurer}` });
+            if (order.address) rows.push({ icon: '📍', text: order.address });
+          } else if (order.status === 'install_scheduled') {
+            if (order.install_date) {
+              const d = order.install_date;
+              const dateStr = `${d.slice(8)}.${d.slice(5, 7)}.${d.slice(2, 4)}`;
+              rows.push({ icon: '📅', text: order.install_time ? `${dateStr} в ${order.install_time}` : dateStr });
+            }
+            if (order.installer) rows.push({ icon: '🔧', text: `Монтажник: ${order.installer}` });
+            if (order.address) rows.push({ icon: '📍', text: order.address });
+          } else if (order.status === 'in_work' || order.status === 'measurement_done' || order.status === 'approval' || order.status === 'production') {
+            if (order.address) rows.push({ icon: '📍', text: order.address });
+          }
+          if (rows.length === 0) return null;
+          return (
+            <div className="kanban-context">
+              {rows.map((r, i) => (
+                <div key={i} className="kanban-context-row">
+                  <span className="kanban-context-icon">{r.icon}</span>
+                  <span className="kanban-context-text">{r.text}</span>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+
         {(order.tag || '').split(',').filter(Boolean).length > 0 && (
           <div className="kanban-tags-row">
             {(order.tag || '').split(',').filter(Boolean).map(tagKey => {
