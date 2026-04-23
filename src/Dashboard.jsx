@@ -62,6 +62,7 @@ function DashboardContent({ onLogout, onChangePassword }) {
     statusFilter, setStatusFilter,
     openDropdown, setOpenDropdown, dropdownRef,
     modal, setModal, modalData, setModalData,
+    modalError, setModalError,
     handleStatusChange, submitModal,
     updateOrderField,
     archiveOrder, deleteOrder, toggleTag,
@@ -208,8 +209,9 @@ function DashboardContent({ onLogout, onChangePassword }) {
         modalData={modalData}
         setModalData={setModalData}
         employees={employees}
+        modalError={modalError}
         onSubmit={submitModal}
-        onClose={() => setModal(null)}
+        onClose={() => { setModal(null); setModalError(''); }}
       />
 
       {historyOrderId && (

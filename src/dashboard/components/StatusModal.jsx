@@ -1,7 +1,13 @@
 import { REJECTION_REASONS, STATUS_LABELS, DELIVERY_TYPES } from '../constants.js';
 
-export default function StatusModal({ modal, modalData, setModalData, employees, onSubmit, onClose }) {
+export default function StatusModal({ modal, modalData, setModalData, employees, modalError, onSubmit, onClose }) {
   if (!modal) return null;
+
+  const ErrorBlock = () => modalError ? (
+    <div className="modal-inline-error">
+      <span>⚠</span> {modalError}
+    </div>
+  ) : null;
 
   const managers = (employees || []).filter(e => e.role === 'manager' || e.role === 'admin');
   const measurers = (employees || []).filter(e => e.role === 'measurer' || e.role === 'installer');
@@ -34,6 +40,7 @@ export default function StatusModal({ modal, modalData, setModalData, employees,
               rows={2}
             />
           </div>
+          <ErrorBlock />
           <div className="modal-buttons">
             <button className="modal-btn-cancel" onClick={onClose}>Отмена</button>
             <button className="modal-btn-reject" onClick={onSubmit}>Отказ</button>
@@ -125,6 +132,7 @@ export default function StatusModal({ modal, modalData, setModalData, employees,
               rows={2}
             />
           </div>
+          <ErrorBlock />
           <div className="modal-buttons">
             <button className="modal-btn-cancel" onClick={onClose}>Отмена</button>
             <button className="modal-btn-confirm" onClick={onSubmit}>В работу</button>
@@ -187,6 +195,7 @@ export default function StatusModal({ modal, modalData, setModalData, employees,
               rows={2}
             />
           </div>
+          <ErrorBlock />
           <div className="modal-buttons">
             <button className="modal-btn-cancel" onClick={onClose}>Отмена</button>
             <button className="modal-btn-confirm" onClick={onSubmit}>Назначить</button>
@@ -219,6 +228,7 @@ export default function StatusModal({ modal, modalData, setModalData, employees,
               rows={2}
             />
           </div>
+          <ErrorBlock />
           <div className="modal-buttons">
             <button className="modal-btn-cancel" onClick={onClose}>Отмена</button>
             <button className="modal-btn-confirm" onClick={onSubmit}>Подтвердить</button>
@@ -263,6 +273,7 @@ export default function StatusModal({ modal, modalData, setModalData, employees,
               rows={2}
             />
           </div>
+          <ErrorBlock />
           <div className="modal-buttons">
             <button className="modal-btn-cancel" onClick={onClose}>Отмена</button>
             <button className="modal-btn-confirm" onClick={onSubmit}>На согласование</button>
@@ -319,6 +330,7 @@ export default function StatusModal({ modal, modalData, setModalData, employees,
               rows={2}
             />
           </div>
+          <ErrorBlock />
           <div className="modal-buttons">
             <button className="modal-btn-cancel" onClick={onClose}>Отмена</button>
             <button className="modal-btn-confirm" onClick={onSubmit}>В производство</button>
@@ -372,6 +384,7 @@ export default function StatusModal({ modal, modalData, setModalData, employees,
               rows={2}
             />
           </div>
+          <ErrorBlock />
           <div className="modal-buttons">
             <button className="modal-btn-cancel" onClick={onClose}>Отмена</button>
             <button className="modal-btn-confirm" onClick={onSubmit}>Назначить</button>
@@ -396,6 +409,7 @@ export default function StatusModal({ modal, modalData, setModalData, employees,
             rows={2}
           />
         </div>
+        <ErrorBlock />
         <div className="modal-buttons">
           <button className="modal-btn-cancel" onClick={onClose}>Отмена</button>
           <button className="modal-btn-confirm" onClick={onSubmit}>Подтвердить</button>

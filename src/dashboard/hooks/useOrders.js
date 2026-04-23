@@ -27,6 +27,7 @@ export default function useOrders(period, customDate) {
   const [openDropdown, setOpenDropdown] = useState(null);
   const [modal, setModal] = useState(null);
   const [modalData, setModalData] = useState({});
+  const [modalError, setModalError] = useState('');
   const [employees, setEmployees] = useState([]);
   const dropdownRef = useRef(null);
   const confirm = useConfirm();
@@ -158,6 +159,7 @@ export default function useOrders(period, customDate) {
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status: newStatus, ...extraData } : o)));
     setModal(null);
     setModalData({});
+    setModalError('');
 
     const { error } = await supabase.from('orders').update({ status: newStatus, ...extraData }).eq('id', id);
 
@@ -201,7 +203,7 @@ export default function useOrders(period, customDate) {
 
     if (type === 'rejected') {
       if (!modalData.rejection_reason) {
-        toast.error('Выберите причину отказа');
+        setModalError('Выберите причину отказа');
         return;
       }
       updateStatus(orderId, 'rejected', {
@@ -222,7 +224,7 @@ export default function useOrders(period, customDate) {
       });
     } else if (type === 'measurement_scheduled') {
       if (!modalData.measurement_date) {
-        toast.error('Укажите дату замера');
+        setModalError('Укажите дату замера');
         return;
       }
       updateStatus(orderId, 'measurement_scheduled', {
@@ -245,7 +247,7 @@ export default function useOrders(period, customDate) {
       });
     } else if (type === 'production') {
       if (!modalData.final_sum) {
-        toast.error('Укажите итоговую сумму заказа');
+        setModalError('Укажите итоговую сумму заказа');
         return;
       }
       const paid = Number(modalData.paid_amount) || 0;
@@ -259,7 +261,7 @@ export default function useOrders(period, customDate) {
       });
     } else if (type === 'install_scheduled') {
       if (!modalData.install_date) {
-        toast.error('Укажите дату монтажа');
+        setModalError('Укажите дату монтажа');
         return;
       }
       updateStatus(orderId, 'install_scheduled', {
@@ -361,6 +363,7 @@ export default function useOrders(period, customDate) {
     statusFilter, setStatusFilter,
     openDropdown, setOpenDropdown, dropdownRef,
     modal, setModal, modalData, setModalData,
+    modalError, setModalError,
     handleStatusChange, submitModal,
     updateOrderField,
     archiveOrder, deleteOrder, toggleTag,
