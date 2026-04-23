@@ -2489,6 +2489,14 @@
   color: #9ca3af;
 }
 
+.cal-event-worker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .cal-event-footer {
   display: flex;
   justify-content: space-between;

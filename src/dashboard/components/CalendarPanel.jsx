@@ -225,6 +225,18 @@ export default function CalendarPanel({ orders, onBack }) {
                         {ev.order.client_phone && (
                           <a href={`tel:${ev.order.client_phone}`} className="cal-event-phone">{ev.order.client_phone}</a>
                         )}
+                        {(ev.type === 'measurement' && ev.order.measurer) && (
+                          <div className="cal-event-worker" style={{ color: EVENT_TYPES.measurement.color }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><circle cx="12" cy="7" r="4" stroke="currentColor" strokeWidth="2"/></svg>
+                            {ev.order.measurer}
+                          </div>
+                        )}
+                        {(ev.type === 'install' && ev.order.installer) && (
+                          <div className="cal-event-worker" style={{ color: EVENT_TYPES.install.color }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><circle cx="12" cy="7" r="4" stroke="currentColor" strokeWidth="2"/></svg>
+                            {ev.order.installer}
+                          </div>
+                        )}
                         {ev.order.address && (
                           <div className="cal-event-address">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" stroke="currentColor" strokeWidth="2"/><circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="2"/></svg>
