@@ -50,6 +50,11 @@ export default function App() {
   const [deliveryDistance, setDeliveryDistance] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [successModal, setSuccessModal] = useState(false);
+  const [consentChecked, setConsentChecked] = useState(false);
+
+  // Если калькулятор встроен в iframe (сайт клиента) — показываем чекбокс согласия
+  // Если открыт напрямую (менеджер в офисе) — не показываем
+  const isEmbedded = window.self !== window.top;
 
   const addItem = () => {
     setItems([...items, { id: Date.now(), productType: 'window', profileType: 'cold-alu', chambers: '3', windowType: 'deaf', width: '', height: '', count: '', needsRAL: false, needsTinting: false }]);
@@ -744,11 +749,23 @@ export default function App() {
 
         <p className="note">* Стоимость подоконников, отливов, доводчиков и доп. фурнитуры рассчитывается при заявке на точный расчёт</p>
 
+        {isEmbedded && (
+          <div className="consent-block">
+            <label className="checkbox-label consent-label">
+              <input type="checkbox" checked={consentChecked} onChange={(e) => setConsentChecked(e.target.checked)} />
+              <span>Я соглашаюсь с{' '}
+                <a href="https://komforttnt.ru/privacy/" target="_blank" rel="noopener noreferrer">Политикой конфиденциальности</a>{' '}и даю{' '}
+                <a href="https://komforttnt.ru/consent/" target="_blank" rel="noopener noreferrer">Согласие на обработку персональных данных</a>
+              </span>
+            </label>
+          </div>
+        )}
+
         <div className="button-row">
           <button className="pdf-btn" onClick={generatePDF}>
             Скачать КП (PDF)
           </button>
-          <button className="submit-btn" onClick={submitOrder} disabled={submitting}>
+          <button className="submit-btn" onClick={submitOrder} disabled={submitting || (isEmbedded && !consentChecked)}>
             {submitting ? 'Отправка...' : 'Оставить заявку на точный расчет'}
           </button>
         </div>

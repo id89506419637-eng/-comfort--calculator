@@ -665,3 +665,49 @@ body {
 .confirm-btn-danger:hover {
   box-shadow: 0 10px 20px rgba(239, 68, 68, 0.5);
 }
+
+/* ===== Consent Checkbox ===== */
+.consent-block {
+  margin-top: 1rem;
+  margin-bottom: 0.25rem;
+}
+
+.consent-label {
+  background: rgba(59, 130, 246, 0.06);
+  border: 1px solid rgba(59, 130, 246, 0.15);
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #cbd5e1;
+  align-items: flex-start;
+}
+
+.consent-label:hover {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.consent-label input {
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
+.consent-label a {
+  color: #60a5fa;
+  text-decoration: none;
+  transition: color 0.2s ease;
+  border-bottom: 1px solid transparent;
+}
+
+.consent-label a:hover {
+  color: #93c5fd;
+  border-bottom-color: #93c5fd;
+}
+
+.submit-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
