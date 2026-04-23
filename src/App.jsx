@@ -51,6 +51,7 @@ export default function App() {
   const [submitting, setSubmitting] = useState(false);
   const [successModal, setSuccessModal] = useState(false);
   const [consentChecked, setConsentChecked] = useState(false);
+  const [inlineError, setInlineError] = useState('');
 
   // Если калькулятор встроен в iframe (сайт клиента) — показываем чекбокс согласия
   // Если открыт напрямую (менеджер в офисе) — не показываем
@@ -171,33 +172,39 @@ export default function App() {
   const { min, max } = totals;
 
   // ============ SUBMIT ORDER ============
+  const showInlineError = (msg) => {
+    setInlineError(msg);
+    setTimeout(() => setInlineError(''), 4000);
+  };
+
   const validateOrder = () => {
     if (!clientName || clientName.trim().length < 2) {
-      toast.error('Введите ФИО клиента (минимум 2 символа)');
+      showInlineError('Введите ФИО клиента (минимум 2 символа)');
       return false;
     }
     if (clientName.length > 255) {
-      toast.error('ФИО слишком длинное');
+      showInlineError('ФИО слишком длинное');
       return false;
     }
     if (clientPhone && !/^[\d\s\-\+\(\)]{7,20}$/.test(clientPhone)) {
-      toast.error('Некорректный формат телефона');
+      showInlineError('Некорректный формат телефона');
       return false;
     }
     for (const item of items) {
       if (!item.width || item.width <= 0 || item.width > 50000) {
-        toast.error('Укажите корректную ширину (1–50000 мм)');
+        showInlineError('Укажите корректную ширину (1–50000 мм)');
         return false;
       }
       if (!item.height || item.height <= 0 || item.height > 50000) {
-        toast.error('Укажите корректную высоту (1–50000 мм)');
+        showInlineError('Укажите корректную высоту (1–50000 мм)');
         return false;
       }
       if (!item.count || item.count <= 0 || item.count > 999) {
-        toast.error('Укажите корректное количество (1–999)');
+        showInlineError('Укажите корректное количество (1–999)');
         return false;
       }
     }
+    setInlineError('');
     return true;
   };
 
@@ -769,6 +776,13 @@ export default function App() {
             {submitting ? 'Отправка...' : 'Оставить заявку на точный расчет'}
           </button>
         </div>
+
+        {inlineError && (
+          <div className="inline-error">
+            <span className="inline-error-icon">⚠</span>
+            {inlineError}
+          </div>
+        )}
       </div>
 
       {successModal && (
