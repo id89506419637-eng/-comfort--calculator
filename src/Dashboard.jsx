@@ -1,25 +1,28 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { supabase } from './supabase.js';
 import useAuth from './dashboard/hooks/useAuth.js';
 import useOrders from './dashboard/hooks/useOrders.js';
 import useTimings from './hooks/useTimings.js';
 import { ConfirmProvider } from './dashboard/components/ConfirmModal.jsx';
+import ErrorBoundary from './dashboard/components/ErrorBoundary.jsx';
 import LoginForm from './dashboard/components/LoginForm.jsx';
 import Header from './dashboard/components/Header.jsx';
 import StatsRow from './dashboard/components/StatsRow.jsx';
 import OrderList from './dashboard/components/OrderList.jsx';
-import KanbanBoard from './dashboard/components/KanbanBoard.jsx';
-import AnalyticsPanel from './dashboard/components/AnalyticsPanel.jsx';
 import StatusModal from './dashboard/components/StatusModal.jsx';
 import PasswordModal from './dashboard/components/PasswordModal.jsx';
-import SummaryModal from './dashboard/components/SummaryModal.jsx';
-import PricesPanel from './dashboard/components/PricesPanel.jsx';
-import CalendarPanel from './dashboard/components/CalendarPanel.jsx';
-import MapPanel from './dashboard/components/MapPanel.jsx';
-import HistoryPanel from './dashboard/components/HistoryPanel.jsx';
-import ArchivePanel from './dashboard/components/ArchivePanel.jsx';
 import './Dashboard.css';
+
+// Lazy-load тяжёлых экранов — грузятся только когда нужны
+const KanbanBoard = lazy(() => import('./dashboard/components/KanbanBoard.jsx'));
+const AnalyticsPanel = lazy(() => import('./dashboard/components/AnalyticsPanel.jsx'));
+const SummaryModal = lazy(() => import('./dashboard/components/SummaryModal.jsx'));
+const PricesPanel = lazy(() => import('./dashboard/components/PricesPanel.jsx'));
+const CalendarPanel = lazy(() => import('./dashboard/components/CalendarPanel.jsx'));
+const MapPanel = lazy(() => import('./dashboard/components/MapPanel.jsx'));
+const HistoryPanel = lazy(() => import('./dashboard/components/HistoryPanel.jsx'));
+const ArchivePanel = lazy(() => import('./dashboard/components/ArchivePanel.jsx'));
 
 export default function Dashboard() {
   const { session, loading: authLoading, signIn, signOut, changePassword } = useAuth();
@@ -38,7 +41,11 @@ export default function Dashboard() {
 
   return (
     <ConfirmProvider>
-      <DashboardContent onLogout={signOut} onChangePassword={changePassword} />
+      <ErrorBoundary>
+        <Suspense fallback={<div className="dashboard" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}><div className="spinner" /></div>}>
+          <DashboardContent onLogout={signOut} onChangePassword={changePassword} />
+        </Suspense>
+      </ErrorBoundary>
     </ConfirmProvider>
   );
 }
