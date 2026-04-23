@@ -123,6 +123,7 @@ export default function OrderCard({
   const overdue = calcOverdue(order, estimates);
   const [expanded, setExpanded] = useState(false);
   const [editingEmpField, setEditingEmpField] = useState(null);
+  const [payDropdown, setPayDropdown] = useState(false);
 
   const paymentInfo = PAYMENT_STATUS[order.payment_status] || PAYMENT_STATUS['not_paid'];
   const deliveryInfo = DELIVERY_TYPES[order.delivery_type] || DELIVERY_TYPES['install'];
@@ -157,9 +158,35 @@ export default function OrderCard({
 
         {/* Оплата и производство в канбане */}
         <div className="kanban-meta-row">
-          <span className="kanban-payment" style={{ color: paymentInfo.color, background: paymentInfo.bg }}>
-            {paymentInfo.label}
-          </span>
+          <div className="kanban-payment-wrapper">
+            <button
+              className="kanban-payment kanban-payment-btn"
+              style={{ color: paymentInfo.color, background: paymentInfo.bg }}
+              onClick={(e) => { e.stopPropagation(); setPayDropdown(!payDropdown); }}
+            >
+              {paymentInfo.label}
+              <svg width="8" height="8" viewBox="0 0 12 12" fill="none" style={{ marginLeft: 3 }}><path d="M3 5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </button>
+            {payDropdown && (
+              <div className="kanban-pay-dropdown">
+                {Object.entries(PAYMENT_STATUS).map(([key, info]) => (
+                  <button
+                    key={key}
+                    className="dropdown-item"
+                    style={{ color: info.color }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onUpdateField(order.id, 'payment_status', key);
+                      setPayDropdown(false);
+                    }}
+                  >
+                    <span className="dropdown-dot" style={{ background: info.color }} />
+                    {info.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           {order.final_sum && order.paid_amount > 0 && order.payment_status === 'partial' && (
             <span className="kanban-pay-progress">
               {Number(order.paid_amount).toLocaleString('ru-RU')} ₽ ({Math.round((Number(order.paid_amount) / Number(order.final_sum)) * 100)}%)

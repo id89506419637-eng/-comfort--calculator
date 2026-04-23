@@ -3071,6 +3071,37 @@
   border-radius: 4px;
 }
 
+.kanban-payment-wrapper {
+  position: relative;
+}
+
+.kanban-payment-btn {
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  transition: opacity 0.15s;
+}
+
+.kanban-payment-btn:hover {
+  opacity: 0.8;
+}
+
+.kanban-pay-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  background: #1f2937;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 4px;
+  z-index: 100;
+  min-width: 130px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
 .kanban-production {
   font-size: 10px;
   color: #22c55e;
