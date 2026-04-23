@@ -724,6 +724,7 @@ body {
   font-weight: 500;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
   animation: errorShake 0.4s ease;
 }
