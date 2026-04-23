@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { exportToExcel, exportToPDF } from '../export.js';
 
 const EXPORT_PERIODS = [
@@ -71,7 +72,7 @@ export default function ExportDropdown({ orders }) {
   const handleExport = (type) => {
     const filtered = getFilteredOrders();
     if (filtered.length === 0) {
-      alert('Нет заказов для экспорта за выбранный период');
+      toast.error('Нет заказов для экспорта за выбранный период');
       return;
     }
     if (type === 'excel') {

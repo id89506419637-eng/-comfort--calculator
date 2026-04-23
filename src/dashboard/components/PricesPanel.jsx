@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { supabase } from '../../supabase.js';
 import { DEFAULT_PRICES } from '../../hooks/usePrices.js';
 import { DEFAULT_TIMINGS } from '../../hooks/useTimings.js';
@@ -110,7 +111,7 @@ export default function PricesPanel({ onBack }) {
 
   // === Сотрудники ===
   const addEmployee = async () => {
-    if (!newEmpName.trim()) { alert('Введите фамилию'); return; }
+    if (!newEmpName.trim()) { toast.error('Введите фамилию'); return; }
     const { data, error } = await supabase.from('employees').insert({
       name: newEmpName.trim(),
       role: newEmpRole,

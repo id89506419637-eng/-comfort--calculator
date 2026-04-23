@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Toaster } from 'react-hot-toast';
 import { supabase } from './supabase.js';
 import useAuth from './dashboard/hooks/useAuth.js';
 import useOrders from './dashboard/hooks/useOrders.js';
@@ -228,6 +229,30 @@ function DashboardContent({ onLogout, onChangePassword }) {
           onClose={() => setShowSummary(false)}
         />
       )}
+
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          duration: 3500,
+          style: {
+            background: 'rgba(30, 41, 59, 0.95)',
+            color: '#fff',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '12px',
+            padding: '12px 18px',
+            fontSize: '14px',
+            fontFamily: 'Inter, sans-serif',
+            backdropFilter: 'blur(20px)',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.4)',
+          },
+          error: {
+            iconTheme: { primary: '#ef4444', secondary: '#fff' },
+          },
+          success: {
+            iconTheme: { primary: '#22c55e', secondary: '#fff' },
+          },
+        }}
+      />
     </div>
   );
 }

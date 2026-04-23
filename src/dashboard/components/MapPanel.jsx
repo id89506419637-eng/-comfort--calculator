@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import toast from 'react-hot-toast';
 import { STATUS_LABELS, STATUS_COLORS } from '../constants.js';
 import { formatMoney } from '../utils.js';
 
@@ -91,7 +92,7 @@ export default function MapPanel({ orders, onBack }) {
 
   const buildRoute = async () => {
     if (checkedIds.size < 1) {
-      alert('Выберите хотя бы 1 адрес для маршрута');
+      toast.error('Выберите хотя бы 1 адрес для маршрута');
       return;
     }
 

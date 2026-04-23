@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import toast from 'react-hot-toast';
 import { supabase } from '../../supabase.js';
 import { getDateRange } from '../utils.js';
 import { STATUS_LABELS } from '../constants.js';
@@ -161,7 +162,7 @@ export default function useOrders(period, customDate) {
     if (error) {
       // Откат при ошибке
       setOrders((prev) => prev.map((o) => (o.id === id ? existing : o)));
-      alert('Не удалось сохранить изменения. Попробуйте ещё раз.');
+      toast.error('Не удалось сохранить изменения. Попробуйте ещё раз');
       return;
     }
 
@@ -198,7 +199,7 @@ export default function useOrders(period, customDate) {
 
     if (type === 'rejected') {
       if (!modalData.rejection_reason) {
-        alert('Выберите причину отказа');
+        toast.error('Выберите причину отказа');
         return;
       }
       updateStatus(orderId, 'rejected', {
@@ -219,7 +220,7 @@ export default function useOrders(period, customDate) {
       });
     } else if (type === 'measurement_scheduled') {
       if (!modalData.measurement_date) {
-        alert('Укажите дату замера');
+        toast.error('Укажите дату замера');
         return;
       }
       updateStatus(orderId, 'measurement_scheduled', {
@@ -242,7 +243,7 @@ export default function useOrders(period, customDate) {
       });
     } else if (type === 'production') {
       if (!modalData.final_sum) {
-        alert('Укажите итоговую сумму заказа');
+        toast.error('Укажите итоговую сумму заказа');
         return;
       }
       const paid = Number(modalData.paid_amount) || 0;
@@ -256,7 +257,7 @@ export default function useOrders(period, customDate) {
       });
     } else if (type === 'install_scheduled') {
       if (!modalData.install_date) {
-        alert('Укажите дату монтажа');
+        toast.error('Укажите дату монтажа');
         return;
       }
       updateStatus(orderId, 'install_scheduled', {
