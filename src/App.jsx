@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import toast, { Toaster } from 'react-hot-toast';
 import { supabase } from './supabase.js';
 import { LOGO_BASE64 } from './logo.js';
 import LogoSVG from './LogoSVG.jsx';
@@ -48,6 +49,7 @@ export default function App() {
   const [needsDemolition, setNeedsDemolition] = useState(false);
   const [deliveryDistance, setDeliveryDistance] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [successModal, setSuccessModal] = useState(false);
 
   const addItem = () => {
     setItems([...items, { id: Date.now(), productType: 'window', profileType: 'cold-alu', chambers: '3', windowType: 'deaf', width: '', height: '', count: '', needsRAL: false, needsTinting: false }]);
@@ -57,7 +59,7 @@ export default function App() {
     if (items.length > 1) {
       setItems(items.filter(i => i.id !== id));
     } else {
-      alert("В заказе должно быть хотя бы одно изделие!");
+      toast.error('В заказе должно быть хотя бы одно изделие');
     }
   };
 
@@ -166,28 +168,28 @@ export default function App() {
   // ============ SUBMIT ORDER ============
   const validateOrder = () => {
     if (!clientName || clientName.trim().length < 2) {
-      alert('Введите ФИО клиента (минимум 2 символа)');
+      toast.error('Введите ФИО клиента (минимум 2 символа)');
       return false;
     }
     if (clientName.length > 255) {
-      alert('ФИО слишком длинное');
+      toast.error('ФИО слишком длинное');
       return false;
     }
     if (clientPhone && !/^[\d\s\-\+\(\)]{7,20}$/.test(clientPhone)) {
-      alert('Некорректный формат телефона');
+      toast.error('Некорректный формат телефона');
       return false;
     }
     for (const item of items) {
       if (!item.width || item.width <= 0 || item.width > 50000) {
-        alert('Укажите корректную ширину (1–50000 мм)');
+        toast.error('Укажите корректную ширину (1–50000 мм)');
         return false;
       }
       if (!item.height || item.height <= 0 || item.height > 50000) {
-        alert('Укажите корректную высоту (1–50000 мм)');
+        toast.error('Укажите корректную высоту (1–50000 мм)');
         return false;
       }
       if (!item.count || item.count <= 0 || item.count > 999) {
-        alert('Укажите корректное количество (1–999)');
+        toast.error('Укажите корректное количество (1–999)');
         return false;
       }
     }
@@ -212,10 +214,10 @@ export default function App() {
         price_max: t.maxRaw,
       });
       if (error) throw error;
-      alert('Заявка успешно отправлена! Мы свяжемся с вами для точного расчёта.');
+      setSuccessModal(true);
     } catch (err) {
       console.error('Ошибка отправки заявки');
-      alert('Не удалось отправить заявку. Попробуйте ещё раз.');
+      toast.error('Не удалось отправить заявку. Попробуйте ещё раз');
     } finally {
       setSubmitting(false);
     }
@@ -751,6 +753,45 @@ export default function App() {
           </button>
         </div>
       </div>
+
+      {successModal && (
+        <div className="success-overlay" onClick={() => setSuccessModal(false)}>
+          <div className="success-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="success-icon">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+            <h2 className="success-title">Заявка принята!</h2>
+            <p className="success-text">Мы свяжемся с вами в ближайшее рабочее время для уточнения деталей</p>
+            <button className="success-btn" onClick={() => setSuccessModal(false)}>Отлично</button>
+          </div>
+        </div>
+      )}
+
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          duration: 3500,
+          style: {
+            background: 'rgba(30, 41, 59, 0.95)',
+            color: '#fff',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '12px',
+            padding: '12px 18px',
+            fontSize: '14px',
+            fontFamily: 'Inter, sans-serif',
+            backdropFilter: 'blur(20px)',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.4)',
+          },
+          error: {
+            iconTheme: { primary: '#ef4444', secondary: '#fff' },
+          },
+          success: {
+            iconTheme: { primary: '#22c55e', secondary: '#fff' },
+          },
+        }}
+      />
     </div>
   );
 }
