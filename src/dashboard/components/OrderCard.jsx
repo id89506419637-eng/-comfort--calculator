@@ -186,7 +186,7 @@ export default function OrderCard({
               const dateStr = `${d.slice(8)}.${d.slice(5, 7)}.${d.slice(2, 4)}`;
               rows.push({ icon: '📅', text: order.measurement_time ? `${dateStr} в ${order.measurement_time}` : dateStr });
             }
-            if (order.measurer) rows.push({ icon: '👤', text: `Замерщик: ${order.measurer}` });
+            if (order.measurer) rows.push({ icon: '👤', text: order.measurer });
             if (order.address) rows.push({ icon: '📍', text: order.address });
           } else if (order.status === 'install_scheduled') {
             if (order.install_date) {
@@ -194,7 +194,7 @@ export default function OrderCard({
               const dateStr = `${d.slice(8)}.${d.slice(5, 7)}.${d.slice(2, 4)}`;
               rows.push({ icon: '📅', text: order.install_time ? `${dateStr} в ${order.install_time}` : dateStr });
             }
-            if (order.installer) rows.push({ icon: '🔧', text: `Монтажник: ${order.installer}` });
+            if (order.installer) rows.push({ icon: '🔧', text: order.installer });
             if (order.address) rows.push({ icon: '📍', text: order.address });
           } else if (order.status === 'in_work' || order.status === 'measurement_done' || order.status === 'approval' || order.status === 'production') {
             if (order.address) rows.push({ icon: '📍', text: order.address });
