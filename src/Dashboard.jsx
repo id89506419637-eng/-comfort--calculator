@@ -4,6 +4,7 @@ import { supabase } from './supabase.js';
 import useAuth from './dashboard/hooks/useAuth.js';
 import useOrders from './dashboard/hooks/useOrders.js';
 import useTimings from './hooks/useTimings.js';
+import { ConfirmProvider } from './dashboard/components/ConfirmModal.jsx';
 import LoginForm from './dashboard/components/LoginForm.jsx';
 import Header from './dashboard/components/Header.jsx';
 import StatsRow from './dashboard/components/StatsRow.jsx';
@@ -35,7 +36,11 @@ export default function Dashboard() {
     return <LoginForm onLogin={signIn} />;
   }
 
-  return <DashboardContent onLogout={signOut} onChangePassword={changePassword} />;
+  return (
+    <ConfirmProvider>
+      <DashboardContent onLogout={signOut} onChangePassword={changePassword} />
+    </ConfirmProvider>
+  );
 }
 
 function DashboardContent({ onLogout, onChangePassword }) {

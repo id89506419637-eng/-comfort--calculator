@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { supabase } from '../../supabase.js';
 import { getDateRange } from '../utils.js';
 import { STATUS_LABELS } from '../constants.js';
+import { useConfirm } from '../components/ConfirmModal.jsx';
 
 // Записать действие в лог
 async function logAction(orderId, action, { oldValue, newValue, fieldName, comment } = {}) {
@@ -28,6 +29,7 @@ export default function useOrders(period, customDate) {
   const [modalData, setModalData] = useState({});
   const [employees, setEmployees] = useState([]);
   const dropdownRef = useRef(null);
+  const confirm = useConfirm();
 
   const fetchOrders = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -313,7 +315,12 @@ export default function useOrders(period, customDate) {
   };
 
   const archiveOrder = async (id) => {
-    if (!window.confirm('Архивировать эту заявку?')) return;
+    const ok = await confirm({
+      title: 'Архивировать заявку?',
+      message: 'Заявка будет перенесена в архив. Её можно будет восстановить позже.',
+      confirmText: 'Архивировать',
+    });
+    if (!ok) return;
     const { error } = await supabase.from('orders').update({ archived: true }).eq('id', id);
     if (!error) {
       await logAction(id, 'field_update', { fieldName: 'archived', newValue: 'true' });
@@ -322,7 +329,13 @@ export default function useOrders(period, customDate) {
   };
 
   const deleteOrder = async (id) => {
-    if (!window.confirm('Удалить заявку навсегда? Это действие необратимо!')) return;
+    const ok = await confirm({
+      title: 'Удалить заявку навсегда?',
+      message: 'Это действие необратимо. Восстановить заявку будет невозможно.',
+      confirmText: 'Удалить',
+      danger: true,
+    });
+    if (!ok) return;
     const { error } = await supabase.from('orders').delete().eq('id', id);
     if (!error) {
       setOrders((prev) => prev.filter((o) => o.id !== id));

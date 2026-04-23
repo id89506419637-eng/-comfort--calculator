@@ -4,6 +4,7 @@ import { supabase } from '../../supabase.js';
 import { DEFAULT_PRICES } from '../../hooks/usePrices.js';
 import { DEFAULT_TIMINGS } from '../../hooks/useTimings.js';
 import { EMPLOYEE_ROLES } from '../constants.js';
+import { useConfirm } from './ConfirmModal.jsx';
 
 const PRICE_FIELDS = [
   { key: 'cold_alu_default', label: 'Хол. алюминий (окно/дверь)', unit: '₽/м²' },
@@ -48,6 +49,7 @@ export default function PricesPanel({ onBack }) {
   const [newEmpName, setNewEmpName] = useState('');
   const [newEmpRole, setNewEmpRole] = useState('manager');
   const [newEmpPhone, setNewEmpPhone] = useState('');
+  const confirm = useConfirm();
 
   useEffect(() => {
     async function load() {
@@ -132,7 +134,13 @@ export default function PricesPanel({ onBack }) {
   };
 
   const deleteEmployee = async (id, name) => {
-    if (!window.confirm(`Удалить сотрудника "${name}"?`)) return;
+    const ok = await confirm({
+      title: 'Удалить сотрудника?',
+      message: `${name} будет удалён из справочника. Это действие необратимо.`,
+      confirmText: 'Удалить',
+      danger: true,
+    });
+    if (!ok) return;
     const { error } = await supabase.from('employees').delete().eq('id', id);
     if (!error) {
       setEmployees((prev) => prev.filter(e => e.id !== id));
