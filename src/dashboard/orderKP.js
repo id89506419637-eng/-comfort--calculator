@@ -156,6 +156,29 @@ export function openOrderKP(order) {
   @media print {
     body { padding: 0; background: white; }
     .kp-container { box-shadow: none; border-radius: 0; }
+    .kp-download { display: none !important; }
+  }
+  .kp-download {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    padding: 24px 40px;
+    background: #f8fafc;
+  }
+  .kp-download-btn {
+    padding: 10px 28px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: opacity 0.15s;
+  }
+  .kp-download-btn:hover { opacity: 0.85; }
+  .kp-download-btn.primary {
+    background: linear-gradient(135deg, #059669, #10b981);
+    color: white;
   }
 </style>
 </head>
@@ -209,6 +232,9 @@ export function openOrderKP(order) {
         <p style="font-size:13px;color:#4b5563">${order.order_comment}</p>
       </div>
       ` : ''}
+    </div>
+    <div class="kp-download">
+      <button class="kp-download-btn primary" onclick="window.print()">📥 Скачать PDF</button>
     </div>
     <div class="kp-footer">
       Комфорт+ | komforttnt.ru | Данное предложение не является публичной офертой
