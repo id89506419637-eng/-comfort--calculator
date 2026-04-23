@@ -169,9 +169,6 @@ export default function OrderCard({
               {order.production_percent}%
             </span>
           )}
-          <span className="kanban-delivery-icon" title={deliveryInfo.label}>
-            {deliveryInfo.icon}
-          </span>
         </div>
 
         <div className="order-items compact">
