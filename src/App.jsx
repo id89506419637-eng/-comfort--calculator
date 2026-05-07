@@ -227,38 +227,49 @@ export default function App() {
 
       const t = calculateTotal();
 
-      // 1) Загружаем прикреплённые клиентом файлы
-      const uploadedAttachments = [];
-      for (const file of attachments) {
-        const safeName = file.name.replace(/[^\w.\-]+/g, '_');
-        const path = `${folderId}/${Date.now()}-${safeName}`;
-        const { error: upErr } = await supabase.storage
-          .from('order-attachments')
-          .upload(path, file, { contentType: file.type || 'application/octet-stream' });
-        if (upErr) throw new Error(`Не удалось загрузить «${file.name}»: ${upErr.message}`);
-        uploadedPaths.push(path);
-        uploadedAttachments.push({
-          name: file.name,
-          size: file.size,
-          type: file.type || '',
-          path,
-        });
-      }
+      // 1) Параллельно: загрузка файлов клиента и генерация PDF КП.
+      //    Эти операции независимы — выполняем одновременно, экономим секунды.
+      console.log('[submitOrder] uploading attachments + generating KP in parallel');
+      const t0 = Date.now();
 
-      // 2) Генерируем PDF КП в браузере и кладём его в то же хранилище —
-      //    Edge Function потом приложит его к email.
-      try {
-        const kpBlob = await buildKpPdfBlob({
-          items,
-          clientName,
-          clientPhone,
-          clientCompany,
-          needsInstallation,
-          needsDemolition,
+      const uploadAttachmentsPromise = (async () => {
+        const result = [];
+        for (const file of attachments) {
+          const safeName = file.name.replace(/[^\w.\-]+/g, '_') || 'file';
+          const path = `${folderId}/${Date.now()}-${safeName}`;
+          const { error: upErr } = await supabase.storage
+            .from('order-attachments')
+            .upload(path, file, { contentType: file.type || 'application/octet-stream' });
+          if (upErr) throw new Error(`Не удалось загрузить «${file.name}»: ${upErr.message}`);
+          uploadedPaths.push(path);
+          result.push({ name: file.name, size: file.size, type: file.type || '', path });
+        }
+        return result;
+      })();
+
+      const kpBlobPromise = Promise.race([
+        buildKpPdfBlob({
+          items, clientName, clientPhone, clientCompany,
+          needsInstallation, needsDemolition,
           deliveryDistance: Number(deliveryDistance) || 0,
-          priceMin: t.minRaw,
-          priceMax: t.maxRaw,
-        }, prices);
+          priceMin: t.minRaw, priceMax: t.maxRaw,
+        }, prices),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('PDF timeout')), 15000)),
+      ]).catch((err) => {
+        console.warn('[submitOrder] PDF КП skipped:', err?.message || err);
+        return null;
+      });
+
+      const [uploadedClientFiles, kpBlob] = await Promise.all([
+        uploadAttachmentsPromise,
+        kpBlobPromise,
+      ]);
+      console.log('[submitOrder] phase1 done in', Date.now() - t0, 'ms');
+
+      const uploadedAttachments = [...uploadedClientFiles];
+
+      // 2) Если КП успешно сгенерирован — загружаем его в Storage
+      if (kpBlob) {
         const kpPath = `${folderId}/kp.pdf`;
         const { error: kpErr } = await supabase.storage
           .from('order-attachments')
@@ -272,11 +283,10 @@ export default function App() {
             path: kpPath,
             isKp: true,
           });
+          console.log('[submitOrder] KP PDF uploaded');
         }
-      } catch (kpGenErr) {
-        // КП не сгенерировался — заявку всё равно создаём, просто без PDF в письме
-        console.warn('PDF КП не сгенерирован', kpGenErr);
       }
+      console.log('[submitOrder] inserting order at', Date.now() - t0, 'ms');
 
       // 3) Создаём заявку с путями ко всем файлам
       const { error } = await supabase.from('orders').insert({
