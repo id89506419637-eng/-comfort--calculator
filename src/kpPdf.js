@@ -466,7 +466,26 @@ export function buildKpPdf(data, prices) {
     content,
   };
 
-  window.pdfMake.createPdf(docDefinition).download('KP_Komfort.pdf');
+  // Открываем пустую вкладку СИНХРОННО (в момент клика пользователя),
+  // иначе браузер заблокирует popup. Затем подставляем blob-URL,
+  // когда PDF будет готов. В браузерном PDF-вьювере есть кнопки
+  // «Скачать» и «Печать» (сверху справа).
+  const win = window.open('', '_blank');
+  window.pdfMake.createPdf(docDefinition).getBlob((blob) => {
+    const url = URL.createObjectURL(blob);
+    if (win) {
+      win.location.href = url;
+    } else {
+      // Фолбэк: если popup всё равно заблокирован — скачиваем файл
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `КП_${data.clientName || 'клиент'}_${new Date().toLocaleDateString('ru-RU')}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 120000);
+  });
 }
 
 /**
