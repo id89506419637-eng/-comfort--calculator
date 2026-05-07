@@ -3,8 +3,8 @@ import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const SMTP_HOST = "smtp.mail.ru";
 const SMTP_PORT = 465;
-const SMTP_USER = "remont-nt@mail.ru";
-const RECIPIENT = "remont-nt@mail.ru";
+const SMTP_USER = "komfortnt@mail.ru";
+const RECIPIENT = "komfortnt@mail.ru";
 const DASHBOARD_URL = "https://comfort-calculator.vercel.app/#dashboard";
 
 serve(async (req) => {
@@ -80,7 +80,49 @@ serve(async (req) => {
       </div>
     `;
 
-    console.log("Connecting to SMTP:", SMTP_HOST, SMTP_PORT);
+    // Скачиваем прикреплённые файлы из Supabase Storage и прикладываем к письму.
+    // Edge Functions автоматически имеют SUPABASE_URL и SUPABASE_SERVICE_ROLE_KEY.
+    const attachmentsToSend: Array<{ filename: string; content: Uint8Array; contentType: string; encoding: "binary" }> = [];
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const orderAttachments = Array.isArray(order.attachments) ? order.attachments : [];
+
+    const MAX_TOTAL_BYTES = 20 * 1024 * 1024; // 20 МБ — оставляем запас под лимит Mail.ru ~25 МБ
+    let totalSize = 0;
+
+    if (supabaseUrl && serviceKey && orderAttachments.length > 0) {
+      // КП показываем первым — приоритет
+      const sorted = [...orderAttachments].sort((a, b) => (b.isKp ? 1 : 0) - (a.isKp ? 1 : 0));
+      for (const att of sorted) {
+        if (!att?.path) continue;
+        try {
+          const fileUrl = `${supabaseUrl}/storage/v1/object/order-attachments/${att.path}`;
+          const fileRes = await fetch(fileUrl, {
+            headers: { Authorization: `Bearer ${serviceKey}` },
+          });
+          if (!fileRes.ok) {
+            console.error("Не удалось скачать файл", att.path, fileRes.status);
+            continue;
+          }
+          const buf = new Uint8Array(await fileRes.arrayBuffer());
+          if (totalSize + buf.length > MAX_TOTAL_BYTES) {
+            console.warn(`Превышен лимит размера, пропускаем ${att.name}`);
+            continue;
+          }
+          totalSize += buf.length;
+          attachmentsToSend.push({
+            filename: att.name || "file",
+            content: buf,
+            contentType: att.type || "application/octet-stream",
+            encoding: "binary",
+          });
+        } catch (e) {
+          console.error("Ошибка при скачивании файла", att.path, (e as Error).message);
+        }
+      }
+    }
+
+    console.log("Connecting to SMTP:", SMTP_HOST, SMTP_PORT, "attachments:", attachmentsToSend.length);
 
     const client = new SMTPClient({
       connection: {
@@ -100,6 +142,7 @@ serve(async (req) => {
       subject: `Новая заявка: ${order.client_name || "Без имени"} — ${priceRange}`,
       content: "auto",
       html,
+      attachments: attachmentsToSend,
     });
 
     await client.close();

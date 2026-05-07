@@ -189,7 +189,7 @@ export function drawSchema(item) {
  * @param {number} [data.priceMax]           — максимум диапазона
  * @param {Object} prices                    — справочник цен
  */
-export function buildKpPdf(data, prices) {
+function buildKpDocDefinition(data, prices) {
   const blue = '#005a8c';
   const dateObj = data.createdAt ? new Date(data.createdAt) : new Date();
   const today = dateObj.toLocaleDateString('ru-RU');
@@ -459,12 +459,20 @@ export function buildKpPdf(data, prices) {
   content.push({ text: 'Согласовано (габариты, комплектация) ____________', fontSize: 9, margin: [0, 16, 0, 0] });
   content.push({ text: 'Не является публичной офертой.', fontSize: 9, italics: true, margin: [0, 12, 0, 0] });
 
-  const docDefinition = {
+  return {
     pageSize: 'A4',
     pageMargins: [40, 40, 40, 30],
     defaultStyle: { font: 'Roboto', fontSize: 10 },
     content,
   };
+}
+
+/**
+ * Собирает PDF и открывает его в новой вкладке (или скачивает, если popup заблокирован).
+ * Используется при клике на «Скачать КП» в калькуляторе и в дашборде.
+ */
+export function buildKpPdf(data, prices) {
+  const docDefinition = buildKpDocDefinition(data, prices);
 
   // Открываем пустую вкладку СИНХРОННО (в момент клика пользователя),
   // иначе браузер заблокирует popup. Затем подставляем blob-URL,
@@ -485,6 +493,21 @@ export function buildKpPdf(data, prices) {
       document.body.removeChild(a);
     }
     setTimeout(() => URL.revokeObjectURL(url), 120000);
+  });
+}
+
+/**
+ * Собирает PDF КП и возвращает его как Blob — для загрузки в Storage
+ * (чтобы потом приложить к email). Не открывает и не скачивает.
+ */
+export function buildKpPdfBlob(data, prices) {
+  return new Promise((resolve, reject) => {
+    try {
+      const docDefinition = buildKpDocDefinition(data, prices);
+      window.pdfMake.createPdf(docDefinition).getBlob((blob) => resolve(blob));
+    } catch (err) {
+      reject(err);
+    }
   });
 }
 

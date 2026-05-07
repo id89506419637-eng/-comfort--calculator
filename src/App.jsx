@@ -3,7 +3,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import { supabase } from './supabase.js';
 import LogoSVG from './LogoSVG.jsx';
 import usePrices from './hooks/usePrices.js';
-import { buildKpPdf, calcItem } from './kpPdf.js';
+import { buildKpPdf, buildKpPdfBlob, calcItem } from './kpPdf.js';
 import './index.css';
 
 // Авто-высота для iframe: сообщаем родительскому сайту при изменении размера
@@ -46,7 +46,8 @@ export default function App() {
   const [dragOver, setDragOver] = useState(false);
 
   const MAX_FILES = 10;
-  const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 МБ
+  const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 МБ на один файл
+  const MAX_TOTAL_SIZE = 20 * 1024 * 1024; // 20 МБ суммарно (лимит Mail.ru на вложения в письме)
   const ALLOWED_EXTS = ['pdf', 'dwg', 'dxf', 'doc', 'docx', 'xls', 'xlsx', 'zip', 'jpg', 'jpeg', 'png', 'heic'];
 
   const formatFileSize = (bytes) => {
@@ -57,6 +58,7 @@ export default function App() {
 
   const addFiles = (newFiles) => {
     const filesToAdd = [];
+    let runningTotal = attachments.reduce((sum, f) => sum + f.size, 0);
     for (const file of newFiles) {
       const ext = file.name.split('.').pop().toLowerCase();
       if (!ALLOWED_EXTS.includes(ext)) {
@@ -64,13 +66,19 @@ export default function App() {
         continue;
       }
       if (file.size > MAX_FILE_SIZE) {
-        toast.error(`«${file.name}»: больше 25 МБ`);
+        toast.error(`«${file.name}»: больше 20 МБ — уменьшите файл`);
         continue;
       }
       if (attachments.length + filesToAdd.length >= MAX_FILES) {
         toast.error(`Можно прикрепить максимум ${MAX_FILES} файлов`);
         break;
       }
+      if (runningTotal + file.size > MAX_TOTAL_SIZE) {
+        const usedMb = (runningTotal / 1024 / 1024).toFixed(1);
+        toast.error(`Превышен общий объём вложений (макс. 20 МБ, уже занято ${usedMb} МБ). Уменьшите размер файлов или удалите ненужные.`);
+        break;
+      }
+      runningTotal += file.size;
       filesToAdd.push(file);
     }
     if (filesToAdd.length > 0) {
@@ -213,33 +221,64 @@ export default function App() {
     setSubmitting(true);
     const uploadedPaths = [];
     try {
-      // 1) Сначала загружаем файлы — если хотя бы один не загрузится,
-      //    откатываем уже загруженные и не создаём заявку.
+      const folderId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : Date.now() + '-' + Math.random().toString(36).slice(2);
+
+      const t = calculateTotal();
+
+      // 1) Загружаем прикреплённые клиентом файлы
       const uploadedAttachments = [];
-      if (attachments.length > 0) {
-        const folderId = (typeof crypto !== 'undefined' && crypto.randomUUID)
-          ? crypto.randomUUID()
-          : Date.now() + '-' + Math.random().toString(36).slice(2);
-        for (const file of attachments) {
-          // Защищаем имя — оставляем только безопасные символы
-          const safeName = file.name.replace(/[^\w.\-]+/g, '_');
-          const path = `${folderId}/${Date.now()}-${safeName}`;
-          const { error: upErr } = await supabase.storage
-            .from('order-attachments')
-            .upload(path, file, { contentType: file.type || 'application/octet-stream' });
-          if (upErr) throw new Error(`Не удалось загрузить «${file.name}»: ${upErr.message}`);
-          uploadedPaths.push(path);
-          uploadedAttachments.push({
-            name: file.name,
-            size: file.size,
-            type: file.type || '',
-            path,
-          });
-        }
+      for (const file of attachments) {
+        const safeName = file.name.replace(/[^\w.\-]+/g, '_');
+        const path = `${folderId}/${Date.now()}-${safeName}`;
+        const { error: upErr } = await supabase.storage
+          .from('order-attachments')
+          .upload(path, file, { contentType: file.type || 'application/octet-stream' });
+        if (upErr) throw new Error(`Не удалось загрузить «${file.name}»: ${upErr.message}`);
+        uploadedPaths.push(path);
+        uploadedAttachments.push({
+          name: file.name,
+          size: file.size,
+          type: file.type || '',
+          path,
+        });
       }
 
-      // 2) Создаём заявку с уже загруженными путями файлов
-      const t = calculateTotal();
+      // 2) Генерируем PDF КП в браузере и кладём его в то же хранилище —
+      //    Edge Function потом приложит его к email.
+      try {
+        const kpBlob = await buildKpPdfBlob({
+          items,
+          clientName,
+          clientPhone,
+          clientCompany,
+          needsInstallation,
+          needsDemolition,
+          deliveryDistance: Number(deliveryDistance) || 0,
+          priceMin: t.minRaw,
+          priceMax: t.maxRaw,
+        }, prices);
+        const kpPath = `${folderId}/kp.pdf`;
+        const { error: kpErr } = await supabase.storage
+          .from('order-attachments')
+          .upload(kpPath, kpBlob, { contentType: 'application/pdf' });
+        if (!kpErr) {
+          uploadedPaths.push(kpPath);
+          uploadedAttachments.push({
+            name: 'КП.pdf',
+            size: kpBlob.size,
+            type: 'application/pdf',
+            path: kpPath,
+            isKp: true,
+          });
+        }
+      } catch (kpGenErr) {
+        // КП не сгенерировался — заявку всё равно создаём, просто без PDF в письме
+        console.warn('PDF КП не сгенерирован', kpGenErr);
+      }
+
+      // 3) Создаём заявку с путями ко всем файлам
       const { error } = await supabase.from('orders').insert({
         client_name: clientName || null,
         client_phone: clientPhone || null,
@@ -257,7 +296,6 @@ export default function App() {
       setSuccessModal(true);
       setAttachments([]);
     } catch (err) {
-      // Откат — удаляем уже загруженные файлы, чтобы не оставались сиротами
       if (uploadedPaths.length > 0) {
         await supabase.storage.from('order-attachments').remove(uploadedPaths).catch(() => {});
       }
@@ -466,7 +504,7 @@ export default function App() {
               <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
             <span>Прикрепить файлы</span>
-            <span className="attach-hint">чертёж, фото, PDF, AutoCAD — до 25 МБ</span>
+            <span className="attach-hint">чертёж, фото, PDF, AutoCAD — до 20 МБ суммарно</span>
           </button>
           <input
             ref={fileInputRef}
