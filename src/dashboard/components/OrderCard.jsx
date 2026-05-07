@@ -487,10 +487,7 @@ export default function OrderCard({
           )}
         </div>
         <div className="order-meta-badges">
-          {/* Тип отгрузки */}
-          <span className="delivery-badge" title={deliveryInfo.label}>
-            {deliveryInfo.icon} {deliveryInfo.label}
-          </span>
+
           {/* Готовность цеха */}
           {order.status !== 'new' && order.status !== 'rejected' && order.status !== 'completed' && (
             <span className="production-badge" title="Готовность цеха">
