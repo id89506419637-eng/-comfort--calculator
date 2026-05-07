@@ -440,6 +440,15 @@ export default function App() {
           </div>
         )}
 
+        <div className="button-row">
+          <button className="pdf-btn" onClick={handleDownloadPdf}>
+            Скачать КП (PDF)
+          </button>
+          <button className="submit-btn" onClick={submitOrder} disabled={submitting || !consentChecked}>
+            {submitting ? 'Отправка...' : 'Оставить заявку на точный расчет'}
+          </button>
+        </div>
+
         <div
           className={`attach-block ${dragOver ? 'attach-block-drag' : ''}`}
           onDragOver={handleDragOver}
@@ -487,15 +496,6 @@ export default function App() {
               ))}
             </ul>
           )}
-        </div>
-
-        <div className="button-row">
-          <button className="pdf-btn" onClick={handleDownloadPdf}>
-            Скачать КП (PDF)
-          </button>
-          <button className="submit-btn" onClick={submitOrder} disabled={submitting || !consentChecked}>
-            {submitting ? 'Отправка...' : 'Оставить заявку на точный расчет'}
-          </button>
         </div>
       </div>
 
