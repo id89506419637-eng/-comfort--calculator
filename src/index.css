@@ -741,3 +741,110 @@ body {
   60% { transform: translateX(-4px); }
   80% { transform: translateX(4px); }
 }
+
+/* === Прикрепление файлов === */
+.attach-block {
+  margin-top: 1rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px dashed rgba(148, 163, 184, 0.3);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.25);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.attach-block-drag {
+  border-color: #60a5fa;
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.attach-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  padding: 0.4rem 0.25rem;
+  color: #cbd5e1;
+  font-size: 0.9rem;
+  font-family: inherit;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  border-radius: 6px;
+  transition: color 0.2s ease;
+}
+
+.attach-btn:hover:not(:disabled) {
+  color: #60a5fa;
+}
+
+.attach-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.attach-btn svg {
+  flex-shrink: 0;
+}
+
+.attach-hint {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-left: auto;
+  font-weight: 400;
+}
+
+.attach-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.attach-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  background: rgba(30, 41, 59, 0.6);
+  border-radius: 6px;
+  font-size: 0.82rem;
+}
+
+.attach-name {
+  flex: 1;
+  color: #e2e8f0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attach-size {
+  color: #94a3b8;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.attach-remove {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.25rem;
+  transition: color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.attach-remove:hover {
+  color: #f87171;
+}
+
+@media (max-width: 600px) {
+  .attach-hint {
+    display: none;
+  }
+}

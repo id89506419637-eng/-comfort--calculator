@@ -338,6 +338,17 @@ export default function useOrders(period, customDate) {
       danger: true,
     });
     if (!ok) return;
+
+    // Удаляем прикреплённые файлы из Storage, чтобы не оставались сиротами
+    // (по 152-ФЗ файлы тоже могут содержать ПДн — уничтожаем вместе с заявкой)
+    const order = orders.find((o) => o.id === id);
+    const paths = Array.isArray(order?.attachments)
+      ? order.attachments.map((a) => a.path).filter(Boolean)
+      : [];
+    if (paths.length > 0) {
+      await supabase.storage.from('order-attachments').remove(paths).catch(() => {});
+    }
+
     const { error } = await supabase.from('orders').delete().eq('id', id);
     if (!error) {
       setOrders((prev) => prev.filter((o) => o.id !== id));

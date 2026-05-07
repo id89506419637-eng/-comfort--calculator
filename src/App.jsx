@@ -40,6 +40,59 @@ export default function App() {
   const [consentChecked, setConsentChecked] = useState(false);
   const [inlineError, setInlineError] = useState('');
 
+  // Прикрепляемые клиентом файлы (чертежи, фото, PDF, AutoCAD и т.п.)
+  const [attachments, setAttachments] = useState([]);
+  const fileInputRef = useRef(null);
+  const [dragOver, setDragOver] = useState(false);
+
+  const MAX_FILES = 10;
+  const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 МБ
+  const ALLOWED_EXTS = ['pdf', 'dwg', 'dxf', 'doc', 'docx', 'xls', 'xlsx', 'zip', 'jpg', 'jpeg', 'png', 'heic'];
+
+  const formatFileSize = (bytes) => {
+    if (bytes < 1024) return bytes + ' Б';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' КБ';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' МБ';
+  };
+
+  const addFiles = (newFiles) => {
+    const filesToAdd = [];
+    for (const file of newFiles) {
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (!ALLOWED_EXTS.includes(ext)) {
+        toast.error(`«${file.name}»: формат не поддерживается`);
+        continue;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error(`«${file.name}»: больше 25 МБ`);
+        continue;
+      }
+      if (attachments.length + filesToAdd.length >= MAX_FILES) {
+        toast.error(`Можно прикрепить максимум ${MAX_FILES} файлов`);
+        break;
+      }
+      filesToAdd.push(file);
+    }
+    if (filesToAdd.length > 0) {
+      setAttachments((prev) => [...prev, ...filesToAdd]);
+    }
+  };
+
+  const removeAttachment = (index) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setDragOver(true);
+  };
+  const handleDragLeave = () => setDragOver(false);
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    if (e.dataTransfer.files?.length) addFiles(Array.from(e.dataTransfer.files));
+  };
+
   const addItem = () => {
     setItems([...items, { id: Date.now(), productType: 'window', profileType: 'cold-alu', chambers: '3', windowType: 'deaf', width: '', height: '', count: '', needsRAL: false, needsTinting: false }]);
   };
@@ -158,7 +211,34 @@ export default function App() {
   const submitOrder = async () => {
     if (!validateOrder()) return;
     setSubmitting(true);
+    const uploadedPaths = [];
     try {
+      // 1) Сначала загружаем файлы — если хотя бы один не загрузится,
+      //    откатываем уже загруженные и не создаём заявку.
+      const uploadedAttachments = [];
+      if (attachments.length > 0) {
+        const folderId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+          ? crypto.randomUUID()
+          : Date.now() + '-' + Math.random().toString(36).slice(2);
+        for (const file of attachments) {
+          // Защищаем имя — оставляем только безопасные символы
+          const safeName = file.name.replace(/[^\w.\-]+/g, '_');
+          const path = `${folderId}/${Date.now()}-${safeName}`;
+          const { error: upErr } = await supabase.storage
+            .from('order-attachments')
+            .upload(path, file, { contentType: file.type || 'application/octet-stream' });
+          if (upErr) throw new Error(`Не удалось загрузить «${file.name}»: ${upErr.message}`);
+          uploadedPaths.push(path);
+          uploadedAttachments.push({
+            name: file.name,
+            size: file.size,
+            type: file.type || '',
+            path,
+          });
+        }
+      }
+
+      // 2) Создаём заявку с уже загруженными путями файлов
       const t = calculateTotal();
       const { error } = await supabase.from('orders').insert({
         client_name: clientName || null,
@@ -171,12 +251,18 @@ export default function App() {
         total_area: parseFloat(t.totalArea.toFixed(2)),
         price_min: t.minRaw,
         price_max: t.maxRaw,
+        attachments: uploadedAttachments,
       });
       if (error) throw error;
       setSuccessModal(true);
+      setAttachments([]);
     } catch (err) {
-      console.error('Ошибка отправки заявки');
-      toast.error('Не удалось отправить заявку. Попробуйте ещё раз');
+      // Откат — удаляем уже загруженные файлы, чтобы не оставались сиротами
+      if (uploadedPaths.length > 0) {
+        await supabase.storage.from('order-attachments').remove(uploadedPaths).catch(() => {});
+      }
+      console.error('Ошибка отправки заявки', err);
+      toast.error(err?.message || 'Не удалось отправить заявку. Попробуйте ещё раз');
     } finally {
       setSubmitting(false);
     }
@@ -336,6 +422,55 @@ export default function App() {
         </div>
 
         <p className="note">* Стоимость подоконников, отливов, доводчиков и доп. фурнитуры рассчитывается при заявке на точный расчёт</p>
+
+        <div
+          className={`attach-block ${dragOver ? 'attach-block-drag' : ''}`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          <button
+            type="button"
+            className="attach-btn"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={attachments.length >= MAX_FILES}
+            title="Прикрепить файлы (чертёж, фото, PDF, AutoCAD)"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <span>Прикрепить файлы</span>
+            <span className="attach-hint">чертёж, фото, PDF, AutoCAD — до 25 МБ</span>
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept=".pdf,.dwg,.dxf,.doc,.docx,.xls,.xlsx,.zip,.jpg,.jpeg,.png,.heic"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              if (e.target.files?.length) addFiles(Array.from(e.target.files));
+              e.target.value = '';
+            }}
+          />
+          {attachments.length > 0 && (
+            <ul className="attach-list">
+              {attachments.map((f, i) => (
+                <li key={i} className="attach-item">
+                  <span className="attach-name" title={f.name}>{f.name}</span>
+                  <span className="attach-size">{formatFileSize(f.size)}</span>
+                  <button
+                    type="button"
+                    className="attach-remove"
+                    onClick={() => removeAttachment(i)}
+                    title="Удалить файл"
+                    aria-label="Удалить файл"
+                  >×</button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
 
         <div className="consent-block">
           <label className="checkbox-label consent-label">

@@ -1,7 +1,38 @@
 import { useState } from 'react';
+import toast from 'react-hot-toast';
+import { supabase } from '../../supabase.js';
 import { STATUS_LABELS, STATUS_COLORS, ORDER_TAGS, STATUS_TRANSITIONS, PAYMENT_STATUS, DELIVERY_TYPES } from '../constants.js';
 import { formatDate, formatMoney, itemsSummary } from '../utils.js';
 import { buildKpPdfFromOrder } from '../../kpPdf.js';
+
+async function openAttachment(att) {
+  const { data, error } = await supabase.storage
+    .from('order-attachments')
+    .createSignedUrl(att.path, 120);
+  if (error || !data?.signedUrl) {
+    toast.error('Не удалось открыть файл');
+    return;
+  }
+  window.open(data.signedUrl, '_blank', 'noopener');
+}
+
+function attachmentIcon(name = '') {
+  const ext = name.split('.').pop()?.toLowerCase();
+  if (['jpg', 'jpeg', 'png', 'heic', 'webp', 'gif'].includes(ext)) return '🖼';
+  if (ext === 'pdf') return '📄';
+  if (['dwg', 'dxf'].includes(ext)) return '📐';
+  if (['doc', 'docx'].includes(ext)) return '📝';
+  if (['xls', 'xlsx'].includes(ext)) return '📊';
+  if (ext === 'zip') return '🗂';
+  return '📎';
+}
+
+function formatAttachmentSize(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024) return bytes + ' Б';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' КБ';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' МБ';
+}
 
 function calcEstimates(order, timings) {
   if (!timings || !order.items || !Array.isArray(order.items)) return null;
@@ -146,7 +177,7 @@ export default function OrderCard({
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </a>
           )}
-          <button className="kanban-kp-btn" onClick={(e) => { e.stopPropagation(); buildKpPdfFromOrder(order); }} title="Скачать КП">
+          <button className="kanban-kp-btn" onClick={(e) => { e.stopPropagation(); buildKpPdfFromOrder(order); }} title="Открыть КП">
             КП
           </button>
         </div>
@@ -509,6 +540,29 @@ export default function OrderCard({
         </div>
       )}
 
+      {/* Прикреплённые клиентом файлы */}
+      {Array.isArray(order.attachments) && order.attachments.length > 0 && (
+        <div className="order-attachments">
+          <span className="order-attachments-title">Прикреплённые файлы:</span>
+          <ul className="order-attachments-list">
+            {order.attachments.map((att, i) => (
+              <li key={i} className="order-attachment-item">
+                <button
+                  type="button"
+                  className="order-attachment-link"
+                  onClick={(e) => { e.stopPropagation(); openAttachment(att); }}
+                  title={`Открыть ${att.name}`}
+                >
+                  <span className="order-attachment-icon">{attachmentIcon(att.name)}</span>
+                  <span className="order-attachment-name">{att.name}</span>
+                  {att.size > 0 && <span className="order-attachment-size">{formatAttachmentSize(att.size)}</span>}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Оценки сроков */}
       {estimates && (
         <div className="order-estimates">
@@ -545,7 +599,7 @@ export default function OrderCard({
           </div>
           <div className="order-action-btns">
             {/* Кнопка КП */}
-            <button className="kp-btn" onClick={() => buildKpPdfFromOrder(order)} title="Скачать коммерческое предложение">
+            <button className="kp-btn" onClick={() => buildKpPdfFromOrder(order)} title="Открыть коммерческое предложение">
               КП
             </button>
             {/* Кнопка развернуть/редактировать */}
