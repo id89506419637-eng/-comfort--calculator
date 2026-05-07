@@ -58,10 +58,65 @@ export default function App() {
     return (bytes / (1024 * 1024)).toFixed(1) + ' МБ';
   };
 
-  const addFiles = (newFiles) => {
+  // Незаметное сжатие изображений в браузере перед загрузкой:
+  // фото с телефонов 6+ МБ ужимаются до ~500 КБ при разрешении 1920×1280, качество 85%.
+  // Документы (PDF, DWG, Word и т.п.) НЕ трогаем — для них сжатие без потерь сложно
+  // и не нужно. HEIC тоже пропускаем — браузеры не умеют декодировать его в Canvas.
+  const compressImage = (file) => {
+    const type = file.type || '';
+    if (!type.startsWith('image/') || type === 'image/heic' || type === 'image/heif') {
+      return Promise.resolve(file);
+    }
+    return new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        let { width, height } = img;
+        const MAX_W = 1920;
+        const MAX_H = 1280;
+        if (width > MAX_W || height > MAX_H) {
+          const ratio = Math.min(MAX_W / width, MAX_H / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => {
+          URL.revokeObjectURL(url);
+          if (!blob || blob.size >= file.size) {
+            // Если по какой-то причине сжатый больше оригинала — оставляем оригинал
+            resolve(file);
+            return;
+          }
+          // Заменяем расширение на .jpg, тип на image/jpeg
+          const nameNoExt = file.name.replace(/\.[^.]+$/, '');
+          const newFile = new File([blob], `${nameNoExt}.jpg`, {
+            type: 'image/jpeg',
+            lastModified: file.lastModified,
+          });
+          resolve(newFile);
+        }, 'image/jpeg', 0.85);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve(file);
+      };
+      img.src = url;
+    });
+  };
+
+  const addFiles = async (newFiles) => {
+    // Сжимаем изображения параллельно (документы compressImage возвращает без изменений)
+    const processed = await Promise.all(
+      Array.from(newFiles).map((f) => compressImage(f).catch(() => f))
+    );
+
     const filesToAdd = [];
     let runningTotal = attachments.reduce((sum, f) => sum + f.size, 0);
-    for (const file of newFiles) {
+    for (const file of processed) {
       const ext = (file.name.split('.').pop() || '').toLowerCase();
       const isImage = (file.type || '').startsWith('image/');
       const isAllowedDoc = ALLOWED_EXTS.includes(ext);
