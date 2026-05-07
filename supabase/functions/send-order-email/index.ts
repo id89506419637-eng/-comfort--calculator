@@ -11,7 +11,9 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 const SMTP_HOST = "smtp.yandex.ru";
 const SMTP_PORT = 465;
 const SMTP_USER = "izuikova@yandex.ru";
-const RECIPIENT = "izuikova@yandex.ru";
+// Получатель — отдельный gmail, а НЕ izuikova@yandex.ru: Яндекс молча выкидывает письма
+// при SMTP-отправке на самого себя с зарубежного IP (антиспам Supabase Edge Functions).
+const RECIPIENT = "nambam577@gmail.com";
 const DASHBOARD_URL = "https://comfort-calculator.vercel.app/#dashboard";
 
 const enc = new TextEncoder();
