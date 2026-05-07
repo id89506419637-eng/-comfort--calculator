@@ -540,28 +540,32 @@ export default function OrderCard({
         </div>
       )}
 
-      {/* Прикреплённые клиентом файлы */}
-      {Array.isArray(order.attachments) && order.attachments.length > 0 && (
-        <div className="order-attachments">
-          <span className="order-attachments-title">Прикреплённые файлы:</span>
-          <ul className="order-attachments-list">
-            {order.attachments.map((att, i) => (
-              <li key={i} className="order-attachment-item">
-                <button
-                  type="button"
-                  className="order-attachment-link"
-                  onClick={(e) => { e.stopPropagation(); openAttachment(att); }}
-                  title={`Открыть ${att.name}`}
-                >
-                  <span className="order-attachment-icon">{attachmentIcon(att.name)}</span>
-                  <span className="order-attachment-name">{att.name}</span>
-                  {att.size > 0 && <span className="order-attachment-size">{formatAttachmentSize(att.size)}</span>}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {/* Прикреплённые клиентом файлы (КП.pdf скрыт — он доступен через зелёную кнопку «КП») */}
+      {(() => {
+        const clientFiles = Array.isArray(order.attachments) ? order.attachments.filter((a) => !a?.isKp) : [];
+        if (clientFiles.length === 0) return null;
+        return (
+          <div className="order-attachments">
+            <span className="order-attachments-title">Прикреплённые файлы:</span>
+            <ul className="order-attachments-list">
+              {clientFiles.map((att, i) => (
+                <li key={i} className="order-attachment-item">
+                  <button
+                    type="button"
+                    className="order-attachment-link"
+                    onClick={(e) => { e.stopPropagation(); openAttachment(att); }}
+                    title={`Открыть ${att.name}`}
+                  >
+                    <span className="order-attachment-icon">{attachmentIcon(att.name)}</span>
+                    <span className="order-attachment-name">{att.name}</span>
+                    {att.size > 0 && <span className="order-attachment-size">{formatAttachmentSize(att.size)}</span>}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      })()}
 
       {/* Оценки сроков */}
       {estimates && (
