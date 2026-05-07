@@ -423,6 +423,23 @@ export default function App() {
 
         <p className="note">* Стоимость подоконников, отливов, доводчиков и доп. фурнитуры рассчитывается при заявке на точный расчёт</p>
 
+        <div className="consent-block">
+          <label className="checkbox-label consent-label">
+            <input type="checkbox" checked={consentChecked} onChange={(e) => setConsentChecked(e.target.checked)} />
+            <span>Я соглашаюсь с{' '}
+              <a href="https://komfortnt.ru/privacy/" target="_blank" rel="noopener noreferrer">Политикой конфиденциальности</a>{' '}и даю{' '}
+              <a href="https://komfortnt.ru/consent/" target="_blank" rel="noopener noreferrer">Согласие на обработку персональных данных</a>
+            </span>
+          </label>
+        </div>
+
+        {inlineError && (
+          <div className="inline-error">
+            <span className="inline-error-icon">⚠</span>
+            {inlineError}
+          </div>
+        )}
+
         <div
           className={`attach-block ${dragOver ? 'attach-block-drag' : ''}`}
           onDragOver={handleDragOver}
@@ -471,23 +488,6 @@ export default function App() {
             </ul>
           )}
         </div>
-
-        <div className="consent-block">
-          <label className="checkbox-label consent-label">
-            <input type="checkbox" checked={consentChecked} onChange={(e) => setConsentChecked(e.target.checked)} />
-            <span>Я соглашаюсь с{' '}
-              <a href="https://komfortnt.ru/privacy/" target="_blank" rel="noopener noreferrer">Политикой конфиденциальности</a>{' '}и даю{' '}
-              <a href="https://komfortnt.ru/consent/" target="_blank" rel="noopener noreferrer">Согласие на обработку персональных данных</a>
-            </span>
-          </label>
-        </div>
-
-        {inlineError && (
-          <div className="inline-error">
-            <span className="inline-error-icon">⚠</span>
-            {inlineError}
-          </div>
-        )}
 
         <div className="button-row">
           <button className="pdf-btn" onClick={handleDownloadPdf}>
