@@ -36,7 +36,9 @@ function b64bin(u8: Uint8Array): string {
 
 // Чтение полного ответа SMTP-сервера (включая multi-line вида "250-..." / "250 ...").
 // С таймаутом — если Yandex обрубил соединение без TLS close_notify, conn.read зависает.
-async function readResponse(conn: Deno.TlsConn, timeoutMs = 10000): Promise<string> {
+// Дефолт 2 сек — Yandex обычно отвечает за миллисекунды, ждать дольше = упереться в
+// 10-секундный лимит Database Webhook и вообще не отправить письмо.
+async function readResponse(conn: Deno.TlsConn, timeoutMs = 2000): Promise<string> {
   let result = "";
   const buf = new Uint8Array(8192);
   const start = Date.now();
@@ -139,7 +141,8 @@ async function sendEmail(
       throw new Error(`DATA rejected: ${dataResp.trim().slice(0, 200)}`);
     }
 
-    try { await cmd(conn, "QUIT"); } catch { /* не критично */ }
+    // QUIT не отправляем — Yandex после DATA уже сам закрыл соединение,
+    // лишний RTT + readResponse только увеличивает время выполнения функции.
   } finally {
     try { conn.close(); } catch { /* ok */ }
   }
