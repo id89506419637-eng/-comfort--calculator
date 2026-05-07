@@ -400,12 +400,12 @@ export default function App() {
             Монтаж
           </label>
 
-          <label className="checkbox-label" style={{ marginBottom: '0.75rem', display: 'inline-flex', width: '100%' }}>
+          <label className="checkbox-label" style={{ marginBottom: '0.4rem', display: 'inline-flex', width: '100%' }}>
             <input type="checkbox" checked={needsDemolition} onChange={(e) => setNeedsDemolition(e.target.checked)}/>
             Демонтаж старых конструкций
           </label>
 
-          <div className="slider-container">
+          <div className="slider-container" style={{ marginTop: 0 }}>
             <div className="slider-info" style={{ alignItems: 'center' }}>
               <span>Удаленность объекта (доставка)</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
