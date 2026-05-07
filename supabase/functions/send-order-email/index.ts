@@ -16,7 +16,10 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 // домена можно слать ТОЛЬКО на email, на который заведён аккаунт. Когда подключим
 // свой домен (komfortnt.ru) — сменим получателя на izuikova@yandex.ru / любой другой.
 // До тех пор пользователь может настроить gmail автопересылку на izuikova@yandex.ru.
-const RECIPIENT = "nambam577@gmail.com";
+// Пока используем тестовый режим Resend — слать можно ТОЛЬКО на email-владелец аккаунта
+// Resend (id89506419637@gmail.com — регистрационная почта пользовательницы). Когда
+// подключим свой домен komfortnt.ru — сменим на izuikova@yandex.ru или любой другой.
+const RECIPIENT = "id89506419637@gmail.com";
 // На бесплатном тарифе Resend без верифицированного домена единственный разрешённый
 // отправитель — onboarding@resend.dev. Имя в From показывается получателю как
 // «Комфорт+ <onboarding@resend.dev>».
