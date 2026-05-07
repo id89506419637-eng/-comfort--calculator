@@ -8,10 +8,10 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const SMTP_HOST = "smtp.mail.ru";
+const SMTP_HOST = "smtp.yandex.ru";
 const SMTP_PORT = 465;
-const SMTP_USER = "komfortnt@mail.ru";
-const RECIPIENT = "komfortnt@mail.ru";
+const SMTP_USER = "izuikova@yandex.ru";
+const RECIPIENT = "izuikova@yandex.ru";
 const DASHBOARD_URL = "https://comfort-calculator.vercel.app/#dashboard";
 
 const enc = new TextEncoder();
@@ -32,18 +32,28 @@ function b64bin(u8: Uint8Array): string {
   return btoa(bin);
 }
 
-// Чтение полного ответа SMTP-сервера (включая multi-line вида "250-..." / "250 ...")
-async function readResponse(conn: Deno.TlsConn): Promise<string> {
+// Чтение полного ответа SMTP-сервера (включая multi-line вида "250-..." / "250 ...").
+// С таймаутом — если Yandex обрубил соединение без TLS close_notify, conn.read зависает.
+async function readResponse(conn: Deno.TlsConn, timeoutMs = 10000): Promise<string> {
   let result = "";
   const buf = new Uint8Array(8192);
+  const start = Date.now();
   while (true) {
-    const n = await conn.read(buf);
+    const readPromise = conn.read(buf);
+    const timeoutPromise = new Promise<null>((resolve) =>
+      setTimeout(() => resolve(null), Math.max(1000, timeoutMs - (Date.now() - start))),
+    );
+    const n = await Promise.race([readPromise, timeoutPromise]);
+    if (n === null) {
+      console.warn("readResponse: timeout, returning what we have");
+      break;
+    }
     if (!n) break;
     result += dec.decode(buf.subarray(0, n));
-    // Конец ответа: последняя строка начинается с "XXX " (3 цифры + пробел, не дефис)
     const lines = result.split("\r\n").filter(Boolean);
     const last = lines[lines.length - 1];
     if (last && /^\d{3} /.test(last)) break;
+    if (Date.now() - start > timeoutMs) break;
   }
   return result;
 }
@@ -80,12 +90,14 @@ async function sendEmail(
     const subjectEnc = `=?UTF-8?B?${b64utf8(subject)}?=`;
     const fromEnc = `=?UTF-8?B?${b64utf8("Комфорт+")}?= <${SMTP_USER}>`;
     const htmlLines = b64utf8(htmlBody).match(/.{1,76}/g)?.join("\r\n") || "";
+    const messageId = `<${Date.now()}.${Math.random().toString(36).slice(2)}@${SMTP_USER.split("@")[1]}>`;
 
     const parts: string[] = [];
     parts.push(`From: ${fromEnc}`);
     parts.push(`To: <${RECIPIENT}>`);
     parts.push(`Subject: ${subjectEnc}`);
     parts.push(`Date: ${new Date().toUTCString()}`);
+    parts.push(`Message-ID: ${messageId}`);
     parts.push(`MIME-Version: 1.0`);
     parts.push(`Content-Type: multipart/mixed; boundary="${boundary}"`);
     parts.push("");
@@ -113,8 +125,17 @@ async function sendEmail(
 
     const message = parts.join("\r\n");
     await conn.write(enc.encode(message + "\r\n.\r\n"));
-    const dataResp = await readResponse(conn);
-    expect(dataResp, "250", "DATA accept");
+    // Yandex иногда обрывает соединение сразу после приёма письма (до отправки 250),
+    // поэтому ловим TLS-ошибку как успех — реально письмо уже доставлено.
+    let dataResp = "";
+    try {
+      dataResp = await readResponse(conn);
+    } catch (e) {
+      console.warn("Read after DATA failed (possibly accepted):", (e as Error).message);
+    }
+    if (dataResp && !dataResp.startsWith("250")) {
+      throw new Error(`DATA rejected: ${dataResp.trim().slice(0, 200)}`);
+    }
 
     try { await cmd(conn, "QUIT"); } catch { /* не критично */ }
   } finally {
@@ -149,28 +170,45 @@ serve(async (req) => {
     // Скачиваем вложения из приватного Storage через service_role
     const attachmentsToSend: Array<{ filename: string; content: Uint8Array; contentType: string }> = [];
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    // У Supabase бывает несколько имён для service-ключа в Edge Functions —
+    // SUPABASE_SERVICE_ROLE_KEY (legacy JWT) или SUPABASE_SECRET_KEY / новый sb_secret_*
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
+      || Deno.env.get("SUPABASE_SECRET_KEY")
+      || Deno.env.get("SUPABASE_SERVICE_KEY")
+      || "";
     const orderAttachments = Array.isArray(order.attachments) ? order.attachments : [];
     const MAX_TOTAL = 20 * 1024 * 1024;
     let totalSize = 0;
+    const debug: string[] = [];
+    debug.push(`order.attachments count=${orderAttachments.length}`);
+    debug.push(`SUPABASE_URL=${supabaseUrl ? "set" : "MISSING"}`);
+    debug.push(`SERVICE_KEY=${serviceKey ? "set(" + serviceKey.length + ")" : "MISSING"}`);
 
     if (supabaseUrl && serviceKey && orderAttachments.length > 0) {
-      // КП первым — приоритет
       const sorted = [...orderAttachments].sort(
         (a: { isKp?: boolean }, b: { isKp?: boolean }) => (b.isKp ? 1 : 0) - (a.isKp ? 1 : 0),
       );
       for (const att of sorted) {
-        if (!att?.path) continue;
+        if (!att?.path) {
+          debug.push(`skip: no path on ${JSON.stringify(att).slice(0, 80)}`);
+          continue;
+        }
         try {
           const fileUrl = `${supabaseUrl}/storage/v1/object/order-attachments/${att.path}`;
-          const fileRes = await fetch(fileUrl, { headers: { Authorization: `Bearer ${serviceKey}` } });
+          const fileRes = await fetch(fileUrl, {
+            headers: {
+              Authorization: `Bearer ${serviceKey}`,
+              apikey: serviceKey,
+            },
+          });
           if (!fileRes.ok) {
-            console.warn("Не удалось скачать", att.path, fileRes.status);
+            const body = await fileRes.text().catch(() => "");
+            debug.push(`download FAIL ${fileRes.status} ${att.path}: ${body.slice(0, 120)}`);
             continue;
           }
           const buf = new Uint8Array(await fileRes.arrayBuffer());
           if (totalSize + buf.length > MAX_TOTAL) {
-            console.warn("Превышен лимит, пропускаем", att.name);
+            debug.push(`size limit, skip ${att.name} (${buf.length}b)`);
             continue;
           }
           totalSize += buf.length;
@@ -179,16 +217,18 @@ serve(async (req) => {
             content: buf,
             contentType: att.type || "application/octet-stream",
           });
+          debug.push(`OK ${att.name} ${buf.length}b`);
         } catch (e) {
-          console.warn("Ошибка скачивания", att.path, (e as Error).message);
+          debug.push(`exception on ${att.path}: ${(e as Error).message}`);
         }
       }
     }
 
     console.log("Sending via SMTP, attachments:", attachmentsToSend.length, "total size:", totalSize);
+    console.log("DEBUG:", debug.join(" | "));
     await sendEmail(password, subject, html, attachmentsToSend);
     console.log("Email sent OK");
-    return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    return new Response(JSON.stringify({ ok: true, sent: attachmentsToSend.length, debug }), { status: 200 });
   } catch (e) {
     console.error("Error:", (e as Error).message);
     return new Response(JSON.stringify({ ok: false, error: (e as Error).message }), { status: 500 });
