@@ -48,7 +48,9 @@ export default function App() {
   const MAX_FILES = 10;
   const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 МБ на один файл
   const MAX_TOTAL_SIZE = 20 * 1024 * 1024; // 20 МБ суммарно (лимит Mail.ru на вложения в письме)
-  const ALLOWED_EXTS = ['pdf', 'dwg', 'dxf', 'doc', 'docx', 'xls', 'xlsx', 'zip', 'jpg', 'jpeg', 'png', 'heic'];
+  // Документы — проверяем по расширению. Изображения — пропускаем все по MIME-типу
+  // (jpg/jpeg/png/heic/jfif/webp/bmp/tiff и т.п. с телефонов и мессенджеров).
+  const ALLOWED_EXTS = ['pdf', 'dwg', 'dxf', 'doc', 'docx', 'xls', 'xlsx', 'zip'];
 
   const formatFileSize = (bytes) => {
     if (bytes < 1024) return bytes + ' Б';
@@ -60,8 +62,10 @@ export default function App() {
     const filesToAdd = [];
     let runningTotal = attachments.reduce((sum, f) => sum + f.size, 0);
     for (const file of newFiles) {
-      const ext = file.name.split('.').pop().toLowerCase();
-      if (!ALLOWED_EXTS.includes(ext)) {
+      const ext = (file.name.split('.').pop() || '').toLowerCase();
+      const isImage = (file.type || '').startsWith('image/');
+      const isAllowedDoc = ALLOWED_EXTS.includes(ext);
+      if (!isImage && !isAllowedDoc) {
         toast.error(`«${file.name}»: формат не поддерживается`);
         continue;
       }
@@ -520,7 +524,7 @@ export default function App() {
             ref={fileInputRef}
             type="file"
             multiple
-            accept=".pdf,.dwg,.dxf,.doc,.docx,.xls,.xlsx,.zip,.jpg,.jpeg,.png,.heic"
+            accept="image/*,.pdf,.dwg,.dxf,.doc,.docx,.xls,.xlsx,.zip"
             style={{ display: 'none' }}
             onChange={(e) => {
               if (e.target.files?.length) addFiles(Array.from(e.target.files));
