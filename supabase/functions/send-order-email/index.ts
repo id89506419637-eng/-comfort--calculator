@@ -1,5 +1,12 @@
+// Edge Function: отправка письма о новой заявке через SMTP Mail.ru.
+// Сырой SMTP (Deno.connectTls) с правильной обработкой multi-line ответов SMTP-сервера
+// и base64-кодированием тела и вложений — Mail.ru гарантированно декодирует кириллицу
+// и нормально показывает HTML.
+//
+// Скачивает прикреплённые клиентом файлы (включая сгенерированный КП.pdf) из приватного
+// бакета `order-attachments` через Supabase service_role и прикладывает к письму.
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const SMTP_HOST = "smtp.mail.ru";
 const SMTP_PORT = 465;
@@ -7,106 +14,163 @@ const SMTP_USER = "komfortnt@mail.ru";
 const RECIPIENT = "komfortnt@mail.ru";
 const DASHBOARD_URL = "https://comfort-calculator.vercel.app/#dashboard";
 
+const enc = new TextEncoder();
+const dec = new TextDecoder("utf-8");
+
+// Base64-кодирование UTF-8 строк (для subject, имён файлов, тела письма)
+function b64utf8(s: string): string {
+  return btoa(unescape(encodeURIComponent(s)));
+}
+
+// Base64-кодирование бинарного буфера (для вложений)
+function b64bin(u8: Uint8Array): string {
+  let bin = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < u8.length; i += chunk) {
+    bin += String.fromCharCode(...u8.subarray(i, i + chunk));
+  }
+  return btoa(bin);
+}
+
+// Чтение полного ответа SMTP-сервера (включая multi-line вида "250-..." / "250 ...")
+async function readResponse(conn: Deno.TlsConn): Promise<string> {
+  let result = "";
+  const buf = new Uint8Array(8192);
+  while (true) {
+    const n = await conn.read(buf);
+    if (!n) break;
+    result += dec.decode(buf.subarray(0, n));
+    // Конец ответа: последняя строка начинается с "XXX " (3 цифры + пробел, не дефис)
+    const lines = result.split("\r\n").filter(Boolean);
+    const last = lines[lines.length - 1];
+    if (last && /^\d{3} /.test(last)) break;
+  }
+  return result;
+}
+
+async function cmd(conn: Deno.TlsConn, line: string): Promise<string> {
+  await conn.write(enc.encode(line + "\r\n"));
+  return readResponse(conn);
+}
+
+function expect(resp: string, code: string, label: string): void {
+  if (!resp.startsWith(code)) {
+    throw new Error(`${label} failed: ${resp.trim().slice(0, 200)}`);
+  }
+}
+
+async function sendEmail(
+  password: string,
+  subject: string,
+  htmlBody: string,
+  attachments: Array<{ filename: string; content: Uint8Array; contentType: string }>,
+): Promise<void> {
+  const conn = await Deno.connectTls({ hostname: SMTP_HOST, port: SMTP_PORT });
+  try {
+    expect(await readResponse(conn), "220", "SMTP banner");
+    expect(await cmd(conn, `EHLO ${SMTP_USER.split("@")[1]}`), "250", "EHLO");
+    expect(await cmd(conn, "AUTH LOGIN"), "334", "AUTH LOGIN");
+    expect(await cmd(conn, btoa(SMTP_USER)), "334", "username");
+    expect(await cmd(conn, btoa(password)), "235", "password auth");
+    expect(await cmd(conn, `MAIL FROM:<${SMTP_USER}>`), "250", "MAIL FROM");
+    expect(await cmd(conn, `RCPT TO:<${RECIPIENT}>`), "250", "RCPT TO");
+    expect(await cmd(conn, "DATA"), "354", "DATA");
+
+    const boundary = "----=Part" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    const subjectEnc = `=?UTF-8?B?${b64utf8(subject)}?=`;
+    const fromEnc = `=?UTF-8?B?${b64utf8("Комфорт+")}?= <${SMTP_USER}>`;
+    const htmlLines = b64utf8(htmlBody).match(/.{1,76}/g)?.join("\r\n") || "";
+
+    const parts: string[] = [];
+    parts.push(`From: ${fromEnc}`);
+    parts.push(`To: <${RECIPIENT}>`);
+    parts.push(`Subject: ${subjectEnc}`);
+    parts.push(`Date: ${new Date().toUTCString()}`);
+    parts.push(`MIME-Version: 1.0`);
+    parts.push(`Content-Type: multipart/mixed; boundary="${boundary}"`);
+    parts.push("");
+
+    // HTML-часть
+    parts.push(`--${boundary}`);
+    parts.push(`Content-Type: text/html; charset=UTF-8`);
+    parts.push(`Content-Transfer-Encoding: base64`);
+    parts.push("");
+    parts.push(htmlLines);
+
+    // Вложения
+    for (const att of attachments) {
+      const attLines = b64bin(att.content).match(/.{1,76}/g)?.join("\r\n") || "";
+      const nameEnc = `=?UTF-8?B?${b64utf8(att.filename)}?=`;
+      parts.push(`--${boundary}`);
+      parts.push(`Content-Type: ${att.contentType}; name="${nameEnc}"`);
+      parts.push(`Content-Transfer-Encoding: base64`);
+      parts.push(`Content-Disposition: attachment; filename="${nameEnc}"`);
+      parts.push("");
+      parts.push(attLines);
+    }
+
+    parts.push(`--${boundary}--`);
+
+    const message = parts.join("\r\n");
+    await conn.write(enc.encode(message + "\r\n.\r\n"));
+    const dataResp = await readResponse(conn);
+    expect(dataResp, "250", "DATA accept");
+
+    try { await cmd(conn, "QUIT"); } catch { /* не критично */ }
+  } finally {
+    try { conn.close(); } catch { /* ok */ }
+  }
+}
+
 serve(async (req) => {
   try {
-    const smtpPassword = Deno.env.get("SMTP_PASSWORD");
-    if (!smtpPassword) {
-      console.error("SMTP_PASSWORD not set");
-      return new Response(JSON.stringify({ ok: false, error: "SMTP_PASSWORD not configured" }), { status: 500 });
+    const password = Deno.env.get("SMTP_PASSWORD");
+    if (!password) {
+      return new Response(JSON.stringify({ ok: false, error: "SMTP_PASSWORD not set" }), { status: 500 });
     }
 
     const payload = await req.json();
-    console.log("Payload received:", JSON.stringify(payload).slice(0, 500));
     const order = payload.record || payload;
+    console.log("Order:", order.client_name, order.client_phone);
 
-    // Формируем список изделий
-    const itemsHtml = Array.isArray(order.items)
-      ? order.items.map((it: Record<string, unknown>, i: number) => {
-          const labels: Record<string, string> = {
-            window: "Окно", door: "Дверь", partition: "Перегородка", "sliding-balcony": "Раздвижная лоджия",
-          };
-          const profiles: Record<string, string> = {
-            "cold-alu": "Холодный алюминий", "warm-alu": "Тёплый алюминий", pvc: "ПВХ",
-          };
-          const name = labels[it.productType as string] || String(it.productType || "—");
-          const profile = profiles[it.profileType as string] || String(it.profileType || "—");
-          const size = `${it.width || "?"}×${it.height || "?"} мм`;
-          const count = `${it.count || 1} шт.`;
-          return `<li>${name} — ${profile}, ${size}, ${count}</li>`;
-        }).join("")
-      : "<li>—</li>";
-
-    // Диапазон цен
-    const priceRange = order.price_min && order.price_max
+    const price = order.price_min && order.price_max
       ? `${Number(order.price_min).toLocaleString("ru-RU")} – ${Number(order.price_max).toLocaleString("ru-RU")} ₽`
-      : "—";
+      : "";
 
-    // Дата
-    const dateStr = new Date(order.created_at || Date.now()).toLocaleString("ru-RU", { timeZone: "Asia/Yekaterinburg" });
+    const subject = `Заявка на точный расчет: ${order.client_name || "Без имени"}${price ? " — " + price : ""}`;
 
-    // Собираем красивое HTML-письмо
-    const html = `
-      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden">
-        <div style="background:#005a8c;padding:16px 24px">
-          <h2 style="color:#fff;margin:0;font-size:18px">📋 Новая заявка на сайте</h2>
-        </div>
-        <div style="padding:20px 24px">
-          <table cellpadding="6" style="border-collapse:collapse;font-size:14px;width:100%">
-            <tr><td style="color:#666;width:120px"><b>Клиент:</b></td><td>${order.client_name || "—"}</td></tr>
-            <tr><td style="color:#666"><b>Телефон:</b></td><td><a href="tel:${order.client_phone || ""}">${order.client_phone || "—"}</a></td></tr>
-            ${order.client_company ? `<tr><td style="color:#666"><b>Компания:</b></td><td>${order.client_company}</td></tr>` : ""}
-            ${order.address ? `<tr><td style="color:#666"><b>Адрес:</b></td><td>${order.address}</td></tr>` : ""}
-            <tr><td style="color:#666"><b>Сумма:</b></td><td style="font-weight:bold;color:#005a8c">${priceRange}</td></tr>
-            <tr><td style="color:#666"><b>Дата:</b></td><td>${dateStr}</td></tr>
-          </table>
+    // Тело письма минимальное — детали клиент и менеджер видят в КП и в дашборде.
+    // Совсем пустое тело Mail.ru может пометить как спам — оставляем одну строку и ссылку.
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family:Arial,sans-serif;color:#333;font-size:14px">
+<p>Новая заявка с калькулятора. Подробности — в приложенном КП и файлах от клиента.</p>
+<p><a href="${DASHBOARD_URL}" style="color:#005a8c;font-weight:bold">Открыть в дашборде →</a></p>
+</body></html>`;
 
-          <h3 style="color:#005a8c;margin:20px 0 8px;font-size:15px">Состав заказа:</h3>
-          <ul style="margin:0;padding-left:20px;font-size:14px">${itemsHtml}</ul>
-
-          ${order.order_comment ? `
-          <div style="margin-top:16px;padding:10px 14px;background:#f5f5f5;border-left:3px solid #005a8c;border-radius:4px;font-size:13px">
-            <b>Комментарий:</b> ${order.order_comment}
-          </div>` : ""}
-
-          <div style="margin-top:24px;text-align:center">
-            <a href="${DASHBOARD_URL}" style="display:inline-block;background:#005a8c;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;font-size:14px">
-              Открыть в дашборде →
-            </a>
-          </div>
-        </div>
-        <div style="background:#f9f9f9;padding:12px 24px;border-top:1px solid #e0e0e0;text-align:center;font-size:11px;color:#999">
-          Автоматическое уведомление от калькулятора Комфорт+
-        </div>
-      </div>
-    `;
-
-    // Скачиваем прикреплённые файлы из Supabase Storage и прикладываем к письму.
-    // Edge Functions автоматически имеют SUPABASE_URL и SUPABASE_SERVICE_ROLE_KEY.
-    const attachmentsToSend: Array<{ filename: string; content: Uint8Array; contentType: string; encoding: "binary" }> = [];
+    // Скачиваем вложения из приватного Storage через service_role
+    const attachmentsToSend: Array<{ filename: string; content: Uint8Array; contentType: string }> = [];
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const orderAttachments = Array.isArray(order.attachments) ? order.attachments : [];
-
-    const MAX_TOTAL_BYTES = 20 * 1024 * 1024; // 20 МБ — оставляем запас под лимит Mail.ru ~25 МБ
+    const MAX_TOTAL = 20 * 1024 * 1024;
     let totalSize = 0;
 
     if (supabaseUrl && serviceKey && orderAttachments.length > 0) {
-      // КП показываем первым — приоритет
-      const sorted = [...orderAttachments].sort((a, b) => (b.isKp ? 1 : 0) - (a.isKp ? 1 : 0));
+      // КП первым — приоритет
+      const sorted = [...orderAttachments].sort(
+        (a: { isKp?: boolean }, b: { isKp?: boolean }) => (b.isKp ? 1 : 0) - (a.isKp ? 1 : 0),
+      );
       for (const att of sorted) {
         if (!att?.path) continue;
         try {
           const fileUrl = `${supabaseUrl}/storage/v1/object/order-attachments/${att.path}`;
-          const fileRes = await fetch(fileUrl, {
-            headers: { Authorization: `Bearer ${serviceKey}` },
-          });
+          const fileRes = await fetch(fileUrl, { headers: { Authorization: `Bearer ${serviceKey}` } });
           if (!fileRes.ok) {
-            console.error("Не удалось скачать файл", att.path, fileRes.status);
+            console.warn("Не удалось скачать", att.path, fileRes.status);
             continue;
           }
           const buf = new Uint8Array(await fileRes.arrayBuffer());
-          if (totalSize + buf.length > MAX_TOTAL_BYTES) {
-            console.warn(`Превышен лимит размера, пропускаем ${att.name}`);
+          if (totalSize + buf.length > MAX_TOTAL) {
+            console.warn("Превышен лимит, пропускаем", att.name);
             continue;
           }
           totalSize += buf.length;
@@ -114,44 +178,19 @@ serve(async (req) => {
             filename: att.name || "file",
             content: buf,
             contentType: att.type || "application/octet-stream",
-            encoding: "binary",
           });
         } catch (e) {
-          console.error("Ошибка при скачивании файла", att.path, (e as Error).message);
+          console.warn("Ошибка скачивания", att.path, (e as Error).message);
         }
       }
     }
 
-    console.log("Connecting to SMTP:", SMTP_HOST, SMTP_PORT, "attachments:", attachmentsToSend.length);
-
-    const client = new SMTPClient({
-      connection: {
-        hostname: SMTP_HOST,
-        port: SMTP_PORT,
-        tls: true,
-        auth: {
-          username: SMTP_USER,
-          password: smtpPassword,
-        },
-      },
-    });
-
-    await client.send({
-      from: `Комфорт+ <${SMTP_USER}>`,
-      to: RECIPIENT,
-      subject: `Новая заявка: ${order.client_name || "Без имени"} — ${priceRange}`,
-      content: "auto",
-      html,
-      attachments: attachmentsToSend,
-    });
-
-    await client.close();
-
-    console.log("Email sent successfully");
+    console.log("Sending via SMTP, attachments:", attachmentsToSend.length, "total size:", totalSize);
+    await sendEmail(password, subject, html, attachmentsToSend);
+    console.log("Email sent OK");
     return new Response(JSON.stringify({ ok: true }), { status: 200 });
-
   } catch (e) {
-    console.error("Function error:", e.message, e.stack);
-    return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 500 });
+    console.error("Error:", (e as Error).message);
+    return new Response(JSON.stringify({ ok: false, error: (e as Error).message }), { status: 500 });
   }
 });
