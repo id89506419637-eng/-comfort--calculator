@@ -11,7 +11,9 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 const SMTP_HOST = "smtp.mail.ru";
 const SMTP_PORT = 465;
 const SMTP_USER = "komfortnt@mail.ru";
-const RECIPIENT = "komfortnt@mail.ru";
+// Получатель — другой ящик заказчика (НЕ тот же что отправитель). Mail.ru не дублирует
+// во Входящие письма «сам себе», они теряются в Отправленных. Шлём с komfortnt на remont-nt.
+const RECIPIENT = "remont-nt@mail.ru";
 const DASHBOARD_URL = "https://comfort-calculator.vercel.app/#dashboard";
 
 const enc = new TextEncoder();
