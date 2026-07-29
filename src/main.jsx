@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 import Dashboard from './Dashboard.jsx'
+import PricesEditor from './PricesEditor.jsx'
 
 function Router() {
   const [route, setRoute] = useState(window.location.hash);
@@ -14,6 +15,7 @@ function Router() {
   }, []);
 
   if (route === '#dashboard') return <Dashboard />;
+  if (route === '#prices') return <PricesEditor />;
   return <App />;
 }
 
