@@ -1,32 +1,44 @@
-// Edge Function: отправка письма о новой заявке через Resend API.
+// Edge Function: отправка письма о новой заявке через Яндекс SMTP.
 //
-// Почему Resend, а не SMTP: Yandex SMTP с зарубежных IP Supabase Edge Functions
-// принимает сессию и возвращает 250 OK, но письма тихо не доставляет (anti-spam).
-// Мы потратили несколько часов на отладку SMTP — все таймауты и пароли приложений
-// корректные, но письма не приходят. Resend это REST API, без SMTP-сессий, с
-// валидным SPF/DKIM на resend.dev — yandex/gmail принимают такие письма нормально.
+// Яндекс SMTP работал с 7 мая — письма доходили. Кодировка через base64.
+// Отправитель: izuikova@yandex.ru (пароль приложения в секрете SMTP_PASSWORD).
+// Получатель: настраивается через RECIPIENT.
 //
-// Скачивает прикреплённые клиентом файлы (включая сгенерированный КП.pdf) из
-// приватного бакета `order-attachments` через Supabase service_role и прикладывает
-// к письму через base64.
+// Скачивает прикреплённые клиентом файлы (включая КП.pdf) из приватного
+// бакета `order-attachments` через service_role и прикладывает к письму.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { encode as b64 } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
-// Получатель — nambam577@gmail.com: на бесплатном тарифе Resend без верифицированного
-// домена можно слать ТОЛЬКО на email, на который заведён аккаунт. Когда подключим
-// свой домен (komfortnt.ru) — сменим получателя на izuikova@yandex.ru / любой другой.
-// До тех пор пользователь может настроить gmail автопересылку на izuikova@yandex.ru.
-// Пока используем тестовый режим Resend — слать можно ТОЛЬКО на email-владелец аккаунта
-// Resend (id89506419637@gmail.com — регистрационная почта пользовательницы). Когда
-// подключим свой домен komfortnt.ru — сменим на izuikova@yandex.ru или любой другой.
+const SMTP_HOST = "smtp.yandex.ru";
+const SMTP_PORT = 465;
+const SMTP_USER = "izuikova@yandex.ru";
+const SENDER_NAME = "Комфорт+";
 const RECIPIENT = "id89506419637@gmail.com";
-// На бесплатном тарифе Resend без верифицированного домена единственный разрешённый
-// отправитель — onboarding@resend.dev. Имя в From показывается получателю как
-// «Комфорт+ <onboarding@resend.dev>».
-const FROM = "Комфорт+ <onboarding@resend.dev>";
 const DASHBOARD_URL = "https://comfort-calculator.vercel.app/#dashboard";
 
-// Base64-кодирование бинарного буфера (для вложений)
+// --- TLS + raw SMTP helpers ---
+async function smtpConnect(): Promise<Deno.TlsConn> {
+  const conn = await Deno.connectTls({ hostname: SMTP_HOST, port: SMTP_PORT });
+  await readReply(conn);
+  return conn;
+}
+
+async function readReply(conn: Deno.TlsConn): Promise<string> {
+  const buf = new Uint8Array(4096);
+  const n = await conn.read(buf);
+  return n ? new TextDecoder().decode(buf.subarray(0, n)) : "";
+}
+
+async function sendCmd(conn: Deno.TlsConn, cmd: string): Promise<string> {
+  await conn.write(new TextEncoder().encode(cmd + "\r\n"));
+  return readReply(conn);
+}
+
+function encodeSubject(text: string): string {
+  return `=?UTF-8?B?${btoa(unescape(encodeURIComponent(text)))}?=`;
+}
+
 function b64bin(u8: Uint8Array): string {
   let bin = "";
   const chunk = 0x8000;
@@ -36,11 +48,18 @@ function b64bin(u8: Uint8Array): string {
   return btoa(bin);
 }
 
+function encodeFilename(name: string): string {
+  return `=?UTF-8?B?${btoa(unescape(encodeURIComponent(name)))}?=`;
+}
+
 serve(async (req) => {
   try {
-    const resendKey = Deno.env.get("RESEND_API_KEY");
-    if (!resendKey) {
-      return new Response(JSON.stringify({ ok: false, error: "RESEND_API_KEY not set" }), { status: 500 });
+    const smtpPassword = Deno.env.get("SMTP_PASSWORD");
+    if (!smtpPassword) {
+      return new Response(
+        JSON.stringify({ ok: false, error: "SMTP_PASSWORD not set" }),
+        { status: 500 },
+      );
     }
 
     const payload = await req.json();
@@ -54,96 +73,112 @@ serve(async (req) => {
     const subject = `Заявка на точный расчет: ${order.client_name || "Без имени"}${price ? " — " + price : ""}`;
 
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family:Arial,sans-serif;color:#333;font-size:14px">
+<div style="background:#005a8c;padding:16px 24px"><h2 style="color:#fff;margin:0;font-size:18px">Заявка на точный расчет</h2></div>
+<div style="padding:16px 24px">
+<p><strong>Клиент:</strong> ${order.client_name || "—"}</p>
+<p><strong>Телефон:</strong> ${order.client_phone || "—"}</p>
+<p><strong>Расчёт:</strong> ${price || "—"}</p>
 <p>Новая заявка с калькулятора. Подробности — в приложенном КП и файлах от клиента.</p>
 <p><a href="${DASHBOARD_URL}" style="color:#005a8c;font-weight:bold">Открыть в дашборде →</a></p>
+</div>
 </body></html>`;
 
-    // Скачиваем вложения из приватного Storage через service_role
-    const attachmentsForResend: Array<{ filename: string; content: string }> = [];
+    // --- Скачиваем вложения из Supabase Storage ---
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
       || Deno.env.get("SUPABASE_SECRET_KEY")
       || Deno.env.get("SUPABASE_SERVICE_KEY")
       || "";
     const orderAttachments = Array.isArray(order.attachments) ? order.attachments : [];
-    // Лимит Resend на письмо — 40 МБ, но между base64 и JSON-overhead закладываемся
-    // на 30 МБ исходных байтов.
-    const MAX_TOTAL = 30 * 1024 * 1024;
+    const MAX_TOTAL = 20 * 1024 * 1024;
     let totalSize = 0;
     const debug: string[] = [];
-    debug.push(`order.attachments count=${orderAttachments.length}`);
-    debug.push(`SUPABASE_URL=${supabaseUrl ? "set" : "MISSING"}`);
-    debug.push(`SERVICE_KEY=${serviceKey ? "set(" + serviceKey.length + ")" : "MISSING"}`);
+    debug.push(`attachments=${orderAttachments.length}`);
+    debug.push(`URL=${supabaseUrl ? "set" : "MISSING"}`);
+    debug.push(`KEY=${serviceKey ? "set(" + serviceKey.length + ")" : "MISSING"}`);
+
+    const files: Array<{ filename: string; b64: string; contentType: string }> = [];
 
     if (supabaseUrl && serviceKey && orderAttachments.length > 0) {
       const sorted = [...orderAttachments].sort(
         (a: { isKp?: boolean }, b: { isKp?: boolean }) => (b.isKp ? 1 : 0) - (a.isKp ? 1 : 0),
       );
       for (const att of sorted) {
-        if (!att?.path) {
-          debug.push(`skip: no path on ${JSON.stringify(att).slice(0, 80)}`);
-          continue;
-        }
+        if (!att?.path) { debug.push(`skip: no path`); continue; }
         try {
           const fileUrl = `${supabaseUrl}/storage/v1/object/order-attachments/${att.path}`;
           const fileRes = await fetch(fileUrl, {
-            headers: {
-              Authorization: `Bearer ${serviceKey}`,
-              apikey: serviceKey,
-            },
+            headers: { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey },
           });
           if (!fileRes.ok) {
-            const body = await fileRes.text().catch(() => "");
-            debug.push(`download FAIL ${fileRes.status} ${att.path}: ${body.slice(0, 120)}`);
+            debug.push(`FAIL ${fileRes.status} ${att.path}`);
             continue;
           }
           const buf = new Uint8Array(await fileRes.arrayBuffer());
-          if (totalSize + buf.length > MAX_TOTAL) {
-            debug.push(`size limit, skip ${att.name} (${buf.length}b)`);
-            continue;
-          }
+          if (totalSize + buf.length > MAX_TOTAL) { debug.push(`size limit ${att.name}`); continue; }
           totalSize += buf.length;
-          attachmentsForResend.push({
+          files.push({
             filename: att.name || "file",
-            content: b64bin(buf),
+            b64: b64bin(buf),
+            contentType: att.type || "application/octet-stream",
           });
           debug.push(`OK ${att.name} ${buf.length}b`);
         } catch (e) {
-          debug.push(`exception on ${att.path}: ${(e as Error).message}`);
+          debug.push(`err ${att.path}: ${(e as Error).message}`);
         }
       }
     }
 
-    console.log("Sending via Resend, attachments:", attachmentsForResend.length, "total size:", totalSize);
     console.log("DEBUG:", debug.join(" | "));
+    console.log("Files to attach:", files.length, "total:", totalSize);
 
-    const resendResp = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${resendKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: FROM,
-        to: [RECIPIENT],
-        subject,
-        html,
-        attachments: attachmentsForResend,
-      }),
-    });
+    // --- Формируем MIME-письмо вручную (правильная кодировка) ---
+    const boundary = `----=_Part_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 
-    const respText = await resendResp.text();
-    if (!resendResp.ok) {
-      console.error("Resend error", resendResp.status, respText);
-      return new Response(
-        JSON.stringify({ ok: false, error: `Resend ${resendResp.status}: ${respText.slice(0, 400)}`, debug }),
-        { status: 500 },
-      );
+    let mime = `From: ${SENDER_NAME} <${SMTP_USER}>\r\n`;
+    mime += `To: ${RECIPIENT}\r\n`;
+    mime += `Subject: ${encodeSubject(subject)}\r\n`;
+    mime += `MIME-Version: 1.0\r\n`;
+    mime += `Content-Type: multipart/mixed; boundary="${boundary}"\r\n`;
+    mime += `\r\n`;
+    mime += `--${boundary}\r\n`;
+    mime += `Content-Type: text/html; charset=UTF-8\r\n`;
+    mime += `Content-Transfer-Encoding: base64\r\n`;
+    mime += `\r\n`;
+    mime += btoa(unescape(encodeURIComponent(html))) + `\r\n`;
+
+    for (const f of files) {
+      mime += `--${boundary}\r\n`;
+      mime += `Content-Type: ${f.contentType}; name="${encodeFilename(f.filename)}"\r\n`;
+      mime += `Content-Disposition: attachment; filename="${encodeFilename(f.filename)}"\r\n`;
+      mime += `Content-Transfer-Encoding: base64\r\n`;
+      mime += `\r\n`;
+      // Разбиваем base64 на строки по 76 символов (стандарт MIME)
+      const b = f.b64;
+      for (let i = 0; i < b.length; i += 76) {
+        mime += b.slice(i, i + 76) + `\r\n`;
+      }
     }
 
-    console.log("Email sent OK via Resend:", respText.slice(0, 200));
+    mime += `--${boundary}--\r\n`;
+
+    // --- Отправка через raw SMTP ---
+    const conn = await smtpConnect();
+    await sendCmd(conn, `EHLO localhost`);
+    await sendCmd(conn, `AUTH LOGIN`);
+    await sendCmd(conn, btoa(SMTP_USER));
+    await sendCmd(conn, btoa(smtpPassword));
+    await sendCmd(conn, `MAIL FROM:<${SMTP_USER}>`);
+    await sendCmd(conn, `RCPT TO:<${RECIPIENT}>`);
+    await sendCmd(conn, `DATA`);
+    await conn.write(new TextEncoder().encode(mime + "\r\n.\r\n"));
+    await readReply(conn);
+    await sendCmd(conn, `QUIT`);
+    conn.close();
+
+    console.log("Email sent OK via Yandex SMTP");
     return new Response(
-      JSON.stringify({ ok: true, sent: attachmentsForResend.length, debug, resend: respText.slice(0, 200) }),
+      JSON.stringify({ ok: true, attachments: files.length, debug }),
       { status: 200 },
     );
   } catch (e) {

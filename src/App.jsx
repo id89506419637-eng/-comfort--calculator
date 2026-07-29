@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import { supabase } from './supabase.js';
 import LogoSVG from './LogoSVG.jsx';
@@ -291,15 +291,57 @@ export default function App() {
       console.log('[submitOrder] uploading attachments + generating KP in parallel');
       const t0 = Date.now();
 
+      // Загрузка файлов через Vercel-прокси (/api/upload) — обходит блокировку
+      // провайдера, который сбрасывает прямые POST-запросы к supabase.co.
+      // Для файлов > 3.5 МБ — разбиваем на части (Vercel лимит 4.5 МБ).
+      const CHUNK_SIZE = 3.5 * 1024 * 1024; // 3.5 МБ на chunk
+      const uploadViaProxy = async (filePath, fileBody, contentType) => {
+        const blob = fileBody instanceof Blob ? fileBody : new Blob([fileBody]);
+        if (blob.size <= CHUNK_SIZE) {
+          // Маленький файл — обычная загрузка
+          const res = await fetch('/api/upload', {
+            method: 'POST',
+            headers: { 'x-file-path': filePath, 'x-content-type': contentType },
+            body: fileBody,
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || err.message || `HTTP ${res.status}`);
+          }
+          return res.json();
+        }
+        // Большой файл — chunk-загрузка
+        const total = Math.ceil(blob.size / CHUNK_SIZE);
+        for (let i = 0; i < total; i++) {
+          const chunk = blob.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+          const res = await fetch('/api/upload', {
+            method: 'POST',
+            headers: {
+              'x-file-path': filePath,
+              'x-content-type': contentType,
+              'x-chunk-index': String(i),
+              'x-chunk-total': String(total),
+            },
+            body: chunk,
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || err.message || `HTTP ${res.status}`);
+          }
+        }
+        return { ok: true };
+      };
+
       const uploadAttachmentsPromise = (async () => {
         const result = [];
         for (const file of attachments) {
           const safeName = file.name.replace(/[^\w.\-]+/g, '_') || 'file';
           const path = `${folderId}/${Date.now()}-${safeName}`;
-          const { error: upErr } = await supabase.storage
-            .from('order-attachments')
-            .upload(path, file, { contentType: file.type || 'application/octet-stream' });
-          if (upErr) throw new Error(`Не удалось загрузить «${file.name}»: ${upErr.message}`);
+          try {
+            await uploadViaProxy(path, file, file.type || 'application/octet-stream');
+          } catch (e) {
+            throw new Error(`Не удалось загрузить «${file.name}»: ${e.message}`);
+          }
           uploadedPaths.push(path);
           result.push({ name: file.name, size: file.size, type: file.type || '', path });
         }
@@ -330,10 +372,8 @@ export default function App() {
       // 2) Если КП успешно сгенерирован — загружаем его в Storage
       if (kpBlob) {
         const kpPath = `${folderId}/kp.pdf`;
-        const { error: kpErr } = await supabase.storage
-          .from('order-attachments')
-          .upload(kpPath, kpBlob, { contentType: 'application/pdf' });
-        if (!kpErr) {
+        try {
+          await uploadViaProxy(kpPath, kpBlob, 'application/pdf');
           uploadedPaths.push(kpPath);
           uploadedAttachments.push({
             name: 'КП.pdf',
@@ -343,6 +383,8 @@ export default function App() {
             isKp: true,
           });
           console.log('[submitOrder] KP PDF uploaded');
+        } catch (e) {
+          console.warn('[submitOrder] KP upload failed:', e.message);
         }
       }
       console.log('[submitOrder] inserting order at', Date.now() - t0, 'ms');
@@ -362,6 +404,23 @@ export default function App() {
         attachments: uploadedAttachments,
       });
       if (error) throw error;
+
+      // Email отправляется ФОНОВО — не блокируем UI, заявка уже сохранена
+      fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          order: {
+            client_name: clientName || null,
+            client_phone: clientPhone || null,
+            price_min: t.minRaw,
+            price_max: t.maxRaw,
+            attachments: uploadedAttachments,
+          },
+        }),
+      }).then(() => console.log('[submitOrder] email sent'))
+        .catch(e => console.warn('[submitOrder] email failed:', e.message));
+
       setSuccessModal(true);
       setAttachments([]);
     } catch (err) {
