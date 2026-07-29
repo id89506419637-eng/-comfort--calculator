@@ -552,7 +552,7 @@ export default function App() {
                   <label className="label">Высота (мм)</label>
                   <input type="text" inputMode="numeric" className="input" value={item.height} onChange={(e) => updateItem(item.id, 'height', e.target.value === '' ? '' : Number(e.target.value))}/>
                 </div>
-                <div className="form-group" style={{ flex: 0.5 }}>
+                <div className="form-group" style={{ flex: 1 }}>
                   <label className="label">Кол-во (шт)</label>
                   <input type="text" inputMode="numeric" className="input" value={item.count} onChange={(e) => updateItem(item.id, 'count', e.target.value === '' ? '' : Number(e.target.value))}/>
                 </div>
