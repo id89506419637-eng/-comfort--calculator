@@ -20,6 +20,10 @@ const PRICE_FIELDS = [
   { key: 'install_per_sqm', label: 'Монтаж', unit: '₽/м²' },
   { key: 'demolition_per_sqm', label: 'Демонтаж', unit: '₽/м²' },
   { key: 'delivery_per_km', label: 'Доставка', unit: '₽/км' },
+  { key: 'otliv_per_piece', label: 'Отлив', unit: '₽/шт' },
+  { key: 'podokonnik_per_piece', label: 'Подоконник', unit: '₽/шт' },
+  { key: 'mosquito_net_per_piece', label: 'Москитная сетка', unit: '₽/шт' },
+  { key: 'dovodchik_per_piece', label: 'Доводчик', unit: '₽/шт' },
 ];
 
 export default function PricesEditor() {
