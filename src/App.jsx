@@ -620,7 +620,7 @@ export default function App() {
             </label>
             <label className="checkbox-label">
               <input type="checkbox" checked={needsDemolition} onChange={(e) => setNeedsDemolition(e.target.checked)}/>
-              Демонтаж старых конструкций
+              Демонтаж
             </label>
           </div>
 
