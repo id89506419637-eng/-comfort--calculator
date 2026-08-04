@@ -14,8 +14,8 @@ const DEFAULT_PRICES = {
   install_per_sqm: 3600,
   demolition_per_sqm: 1100,
   delivery_per_km: 75,
-  otliv_per_piece: 1500,
-  podokonnik_per_piece: 2000,
+  otliv_per_meter: 800,
+  podokonnik_per_meter: 1500,
   mosquito_net_per_piece: 1200,
   dovodchik_per_piece: 2500,
 };

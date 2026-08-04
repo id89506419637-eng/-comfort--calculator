@@ -572,31 +572,37 @@ export default function App() {
               </div>
               <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {[
-                  { key: 'mosquitoNet', label: 'Москитная сетка' },
-                  { key: 'podokonnik', label: 'Подоконник' },
-                  { key: 'otliv', label: 'Отлив' },
-                  { key: 'dovodchik', label: 'Доводчик' },
-                ].map((opt) => (
-                  <div key={opt.key} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <label className="checkbox-label" style={{ flex: 1, marginBottom: 0 }}>
-                      <input type="checkbox" checked={!!item[opt.key]} onChange={(e) => updateItem(item.id, opt.key, e.target.checked)}/>
-                      {opt.label}
-                    </label>
-                    {item[opt.key] && (
-                      <>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          className="input"
-                          style={{ width: '64px', flexShrink: 0, padding: '0.3rem', textAlign: 'center' }}
-                          value={item[`${opt.key}Qty`] ?? ''}
-                          onChange={(e) => updateItem(item.id, `${opt.key}Qty`, e.target.value === '' ? '' : Number(e.target.value))}
-                        />
-                        <span style={{ fontSize: '0.85rem', color: '#9ca3af', flexShrink: 0 }}>шт</span>
-                      </>
-                    )}
-                  </div>
-                ))}
+                  { key: 'mosquitoNet', label: 'Москитная сетка', unit: 'pc' },
+                  { key: 'podokonnik', label: 'Подоконник', unit: 'm' },
+                  { key: 'otliv', label: 'Отлив', unit: 'm' },
+                  { key: 'dovodchik', label: 'Доводчик', unit: 'pc' },
+                ].map((opt) => {
+                  const lengthM = ((Number(item.width) || 0) / 1000) * (Number(item.count) || 0);
+                  return (
+                    <div key={opt.key} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <label className="checkbox-label" style={{ flex: 1, marginBottom: 0 }}>
+                        <input type="checkbox" checked={!!item[opt.key]} onChange={(e) => updateItem(item.id, opt.key, e.target.checked)}/>
+                        {opt.label}
+                      </label>
+                      {item[opt.key] && opt.unit === 'pc' && (
+                        <>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            className="input"
+                            style={{ width: '64px', flexShrink: 0, padding: '0.3rem', textAlign: 'center' }}
+                            value={item[`${opt.key}Qty`] ?? ''}
+                            onChange={(e) => updateItem(item.id, `${opt.key}Qty`, e.target.value === '' ? '' : Number(e.target.value))}
+                          />
+                          <span style={{ fontSize: '0.85rem', color: '#9ca3af', flexShrink: 0 }}>шт</span>
+                        </>
+                      )}
+                      {item[opt.key] && opt.unit === 'm' && (
+                        <span style={{ fontSize: '0.85rem', color: '#9ca3af', flexShrink: 0 }}>≈ {lengthM.toFixed(2)} м</span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ))}

@@ -20,8 +20,8 @@ const PRICE_FIELDS = [
   { key: 'install_per_sqm', label: 'Монтаж', unit: '₽/м²' },
   { key: 'demolition_per_sqm', label: 'Демонтаж', unit: '₽/м²' },
   { key: 'delivery_per_km', label: 'Доставка', unit: '₽/км' },
-  { key: 'otliv_per_piece', label: 'Отлив', unit: '₽/шт' },
-  { key: 'podokonnik_per_piece', label: 'Подоконник', unit: '₽/шт' },
+  { key: 'otliv_per_meter', label: 'Отлив', unit: '₽/м' },
+  { key: 'podokonnik_per_meter', label: 'Подоконник', unit: '₽/м' },
   { key: 'mosquito_net_per_piece', label: 'Москитная сетка', unit: '₽/шт' },
   { key: 'dovodchik_per_piece', label: 'Доводчик', unit: '₽/шт' },
 ];
