@@ -570,7 +570,7 @@ export default function App() {
                   Тонировка стёкол
                 </label>
               </div>
-              <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <div className="checkbox-group" style={{ marginTop: '0.5rem' }}>
                 {[
                   { key: 'mosquitoNet', label: 'Москитная сетка', unit: 'pc' },
                   { key: 'podokonnik', label: 'Подоконник', unit: 'm' },
