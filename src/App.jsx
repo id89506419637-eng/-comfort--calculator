@@ -569,14 +569,16 @@ export default function App() {
                   <input type="checkbox" checked={item.needsTinting} onChange={(e) => updateItem(item.id, 'needsTinting', e.target.checked)}/>
                   Тонировка стёкол
                 </label>
+              </div>
+              <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {[
-                  { key: 'otliv', label: 'Отлив' },
-                  { key: 'podokonnik', label: 'Подоконник' },
                   { key: 'mosquitoNet', label: 'Москитная сетка' },
+                  { key: 'podokonnik', label: 'Подоконник' },
+                  { key: 'otliv', label: 'Отлив' },
                   { key: 'dovodchik', label: 'Доводчик' },
                 ].map((opt) => (
-                  <div key={opt.key} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%' }}>
-                    <label className="checkbox-label" style={{ marginBottom: 0 }}>
+                  <div key={opt.key} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <label className="checkbox-label" style={{ flex: 1, marginBottom: 0 }}>
                       <input type="checkbox" checked={!!item[opt.key]} onChange={(e) => updateItem(item.id, opt.key, e.target.checked)}/>
                       {opt.label}
                     </label>
@@ -586,11 +588,11 @@ export default function App() {
                           type="text"
                           inputMode="numeric"
                           className="input"
-                          style={{ width: '64px', padding: '0.3rem', textAlign: 'center' }}
+                          style={{ width: '64px', flexShrink: 0, padding: '0.3rem', textAlign: 'center' }}
                           value={item[`${opt.key}Qty`] ?? ''}
                           onChange={(e) => updateItem(item.id, `${opt.key}Qty`, e.target.value === '' ? '' : Number(e.target.value))}
                         />
-                        <span style={{ fontSize: '0.85rem', color: '#9ca3af' }}>шт</span>
+                        <span style={{ fontSize: '0.85rem', color: '#9ca3af', flexShrink: 0 }}>шт</span>
                       </>
                     )}
                   </div>
@@ -605,15 +607,16 @@ export default function App() {
         <div className="global-settings">
           <h3 className="section-title">Общие услуги (на весь заказ)</h3>
 
-          <label className="checkbox-label" style={{ marginBottom: '0.5rem', display: 'inline-flex', width: '100%' }}>
-            <input type="checkbox" checked={needsInstallation} onChange={(e) => setNeedsInstallation(e.target.checked)}/>
-            Монтаж
-          </label>
-
-          <label className="checkbox-label" style={{ marginBottom: '0.4rem', display: 'inline-flex', width: '100%' }}>
-            <input type="checkbox" checked={needsDemolition} onChange={(e) => setNeedsDemolition(e.target.checked)}/>
-            Демонтаж старых конструкций
-          </label>
+          <div className="checkbox-group" style={{ marginBottom: '0.5rem' }}>
+            <label className="checkbox-label">
+              <input type="checkbox" checked={needsInstallation} onChange={(e) => setNeedsInstallation(e.target.checked)}/>
+              Монтаж
+            </label>
+            <label className="checkbox-label">
+              <input type="checkbox" checked={needsDemolition} onChange={(e) => setNeedsDemolition(e.target.checked)}/>
+              Демонтаж старых конструкций
+            </label>
+          </div>
 
           <div className="slider-container" style={{ marginTop: 0 }}>
             <div className="slider-info" style={{ alignItems: 'center' }}>
