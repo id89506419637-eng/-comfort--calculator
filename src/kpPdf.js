@@ -48,12 +48,13 @@ export function calcItem(item, prices) {
     itemBaseCost += itemTotalArea * prices.tinting_per_sqm;
   }
 
-  // Доп. опции по изделию:
-  //  отлив/подоконник — за погонный метр (длина = ширина окна × кол-во),
-  //  сетка/доводчик — за штуку (кол-во задаёт менеджер).
-  const optLengthM = ((item.width || 0) / 1000) * (item.count || 0);
-  if (item.otliv) itemBaseCost += optLengthM * (prices.otliv_per_meter || 0);
-  if (item.podokonnik) itemBaseCost += optLengthM * (prices.podokonnik_per_meter || 0);
+  // Доп. опции по изделию (кол-во штук задаёт менеджер):
+  //  отлив/подоконник — цена за пог.метр, длина одной штуки = ширина окна:
+  //    итог = кол-во шт × (ширина/1000) × цена_за_метр;
+  //  сетка/доводчик — цена за штуку: итог = кол-во шт × цена_за_штуку.
+  const optWidthM = (item.width || 0) / 1000;
+  if (item.otliv) itemBaseCost += (Number(item.otlivQty) || 0) * optWidthM * (prices.otliv_per_meter || 0);
+  if (item.podokonnik) itemBaseCost += (Number(item.podokonnikQty) || 0) * optWidthM * (prices.podokonnik_per_meter || 0);
   if (item.mosquitoNet) itemBaseCost += (Number(item.mosquitoNetQty) || 0) * (prices.mosquito_net_per_piece || 0);
   if (item.dovodchik) itemBaseCost += (Number(item.dovodchikQty) || 0) * (prices.dovodchik_per_piece || 0);
 
@@ -251,9 +252,8 @@ function buildKpDocDefinition(data, prices) {
     }
     if (item.needsRAL) desc.push('Покраска RAL');
     if (item.needsTinting) desc.push('Тонировка стёкол');
-    const optLenM = ((item.width || 0) / 1000) * (item.count || 0);
-    if (item.otliv) desc.push(`Отлив: ${optLenM.toFixed(2)} м`);
-    if (item.podokonnik) desc.push(`Подоконник: ${optLenM.toFixed(2)} м`);
+    if (item.otliv) desc.push(`Отлив: ${Number(item.otlivQty) || 0} шт.`);
+    if (item.podokonnik) desc.push(`Подоконник: ${Number(item.podokonnikQty) || 0} шт.`);
     if (item.mosquitoNet) desc.push(`Москитная сетка: ${Number(item.mosquitoNetQty) || 0} шт.`);
     if (item.dovodchik) desc.push(`Доводчик: ${Number(item.dovodchikQty) || 0} шт.`);
 
