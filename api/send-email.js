@@ -36,7 +36,6 @@ export default async function handler(req, res) {
 <p><strong>Телефон:</strong> ${order.client_phone || '—'}</p>
 <p><strong>Расчёт:</strong> ${price || '—'}</p>
 <p>Подробности — в приложенном КП и файлах от клиента.</p>
-<p><a href="https://comfort-calculator.vercel.app/#dashboard" style="color:#005a8c;font-weight:bold">Открыть в дашборде →</a></p>
 </div></body></html>`;
 
     // Скачиваем вложения из Supabase Storage
