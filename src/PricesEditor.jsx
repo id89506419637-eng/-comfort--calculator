@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from './supabase.js';
-import useAuth from './dashboard/hooks/useAuth.js';
-import LoginForm from './dashboard/components/LoginForm.jsx';
+import useAuth from './useAuth.js';
+import LoginForm from './LoginForm.jsx';
 import { DEFAULT_PRICES } from './hooks/usePrices.js';
-import './Dashboard.css';
+import './prices.css';
 
 // Те же поля цен, что использует калькулятор (usePrices/calcItem).
 // Держим список здесь, чтобы редактор цен не зависел от дашборда.

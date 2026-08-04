@@ -2,7 +2,6 @@ import { StrictMode, useState, useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
-import Dashboard from './Dashboard.jsx'
 import PricesEditor from './PricesEditor.jsx'
 
 function Router() {
@@ -14,7 +13,6 @@ function Router() {
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
-  if (route === '#dashboard') return <Dashboard />;
   if (route === '#prices') return <PricesEditor />;
   return <App />;
 }
