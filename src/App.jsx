@@ -22,6 +22,11 @@ function useIframeResize() {
   return ref;
 }
 
+// Встроен ли калькулятор в чужой сайт (iframe) или открыт с ?embed —
+// тогда прячем кнопку «Цены» (она только для менеджеров).
+const IS_EMBEDDED = typeof window !== 'undefined'
+  && (window.self !== window.top || new URLSearchParams(window.location.search).has('embed'));
+
 export default function App() {
   const { prices, loading: pricesLoading } = usePrices();
 
@@ -459,24 +464,26 @@ export default function App() {
   return (
     <div className="app-container" ref={containerRef}>
       <div className="calculator-card">
-        <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-end', marginBottom: '0.25rem' }}>
-          <button
-            type="button"
-            onClick={() => { window.location.hash = '#prices'; }}
-            title="Редактировать цены (для менеджеров)"
-            style={{
-              background: 'rgba(255,255,255,0.08)',
-              border: '1px solid rgba(255,255,255,0.15)',
-              color: '#cbd5e1',
-              borderRadius: '8px',
-              padding: '6px 12px',
-              fontSize: '13px',
-              cursor: 'pointer',
-            }}
-          >
-            ⚙ Цены
-          </button>
-        </div>
+        {!IS_EMBEDDED && (
+          <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-end', marginBottom: '0.25rem' }}>
+            <button
+              type="button"
+              onClick={() => { window.location.hash = '#prices'; }}
+              title="Редактировать цены (для менеджеров)"
+              style={{
+                background: 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                color: '#cbd5e1',
+                borderRadius: '8px',
+                padding: '6px 12px',
+                fontSize: '13px',
+                cursor: 'pointer',
+              }}
+            >
+              ⚙ Цены
+            </button>
+          </div>
+        )}
         <LogoSVG height={48} className="logo-img" />
         <p className="subtitle">Экспресс-калькулятор стоимости заказа</p>
 
