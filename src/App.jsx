@@ -216,9 +216,9 @@ export default function App() {
     let totalArea = 0;
 
     items.forEach(item => {
-      const { area, cost } = calcItem(item, prices);
+      const { area, cost, optionsCost } = calcItem(item, prices);
       totalArea += area;
-      baseCostTotal += cost;
+      baseCostTotal += cost + optionsCost;
     });
 
     let globalAdditive = 0;

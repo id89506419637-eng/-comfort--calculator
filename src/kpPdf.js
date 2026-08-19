@@ -48,17 +48,24 @@ export function calcItem(item, prices) {
     itemBaseCost += itemTotalArea * prices.tinting_per_sqm;
   }
 
-  // Доп. опции по изделию (кол-во штук задаёт менеджер):
-  //  отлив/подоконник — цена за пог.метр, длина одной штуки = ширина окна:
-  //    итог = кол-во шт × (ширина/1000) × цена_за_метр;
-  //  сетка/доводчик — цена за штуку: итог = кол-во шт × цена_за_штуку.
-  const optWidthM = (item.width || 0) / 1000;
-  if (item.otliv) itemBaseCost += (Number(item.otlivQty) || 0) * optWidthM * (prices.otliv_per_meter || 0);
-  if (item.podokonnik) itemBaseCost += (Number(item.podokonnikQty) || 0) * optWidthM * (prices.podokonnik_per_meter || 0);
-  if (item.mosquitoNet) itemBaseCost += (Number(item.mosquitoNetQty) || 0) * (prices.mosquito_net_per_piece || 0);
-  if (item.dovodchik) itemBaseCost += (Number(item.dovodchikQty) || 0) * (prices.dovodchik_per_piece || 0);
+  // Опции считаются отдельно (см. itemOptions) и в цену изделия НЕ входят —
+  // в КП они выводятся отдельной таблицей «Комплектующие».
+  const optionsCost = itemOptions(item, prices).reduce((s, o) => s + o.cost, 0);
 
-  return { area: itemTotalArea, cost: itemBaseCost };
+  return { area: itemTotalArea, cost: itemBaseCost, optionsCost };
+}
+
+// Доп. опции по изделию (кол-во штук задаёт менеджер).
+// Отлив/подоконник — цена за пог.метр, длина одной штуки = ширина окна.
+// Сетка/доводчик — цена за штуку.
+export function itemOptions(item, prices) {
+  const optWidthM = (item.width || 0) / 1000;
+  const list = [];
+  if (item.otliv) list.push({ name: 'Отлив', qty: Number(item.otlivQty) || 0, cost: (Number(item.otlivQty) || 0) * optWidthM * (prices.otliv_per_meter || 0) });
+  if (item.podokonnik) list.push({ name: 'Подоконник', qty: Number(item.podokonnikQty) || 0, cost: (Number(item.podokonnikQty) || 0) * optWidthM * (prices.podokonnik_per_meter || 0) });
+  if (item.mosquitoNet) list.push({ name: 'Москитная сетка', qty: Number(item.mosquitoNetQty) || 0, cost: (Number(item.mosquitoNetQty) || 0) * (prices.mosquito_net_per_piece || 0) });
+  if (item.dovodchik) list.push({ name: 'Доводчик', qty: Number(item.dovodchikQty) || 0, cost: (Number(item.dovodchikQty) || 0) * (prices.dovodchik_per_piece || 0) });
+  return list;
 }
 
 export function drawSchema(item) {
@@ -252,23 +259,6 @@ function buildKpDocDefinition(data, prices) {
     }
     if (item.needsRAL) desc.push('Покраска RAL');
     if (item.needsTinting) desc.push('Тонировка стёкол');
-    const optWidthM = (item.width || 0) / 1000;
-    if (item.otliv) {
-      const c = (Number(item.otlivQty) || 0) * optWidthM * (prices.otliv_per_meter || 0);
-      desc.push(`Отлив: ${Number(item.otlivQty) || 0} шт. — ${Math.round(c).toLocaleString('ru-RU')} ₽`);
-    }
-    if (item.podokonnik) {
-      const c = (Number(item.podokonnikQty) || 0) * optWidthM * (prices.podokonnik_per_meter || 0);
-      desc.push(`Подоконник: ${Number(item.podokonnikQty) || 0} шт. — ${Math.round(c).toLocaleString('ru-RU')} ₽`);
-    }
-    if (item.mosquitoNet) {
-      const c = (Number(item.mosquitoNetQty) || 0) * (prices.mosquito_net_per_piece || 0);
-      desc.push(`Москитная сетка: ${Number(item.mosquitoNetQty) || 0} шт. — ${Math.round(c).toLocaleString('ru-RU')} ₽`);
-    }
-    if (item.dovodchik) {
-      const c = (Number(item.dovodchikQty) || 0) * (prices.dovodchik_per_piece || 0);
-      desc.push(`Доводчик: ${Number(item.dovodchikQty) || 0} шт. — ${Math.round(c).toLocaleString('ru-RU')} ₽`);
-    }
 
     content.push({
       unbreakable: true,
@@ -360,6 +350,50 @@ function buildKpDocDefinition(data, prices) {
       paddingRight: () => 4,
     }
   });
+
+  // ===== КОМПЛЕКТУЮЩИЕ =====
+  const optAgg = {};
+  items.forEach((item) => {
+    itemOptions(item, prices).forEach((o) => {
+      if (!optAgg[o.name]) optAgg[o.name] = { qty: 0, cost: 0 };
+      optAgg[o.name].qty += o.qty;
+      optAgg[o.name].cost += o.cost;
+    });
+  });
+  const optRows = Object.entries(optAgg).map(([name, v]) => [name, `${v.qty} шт.`, Math.round(v.cost).toLocaleString('ru-RU')]);
+
+  if (optRows.length > 0) {
+    content.push({ text: 'КОМПЛЕКТУЮЩИЕ', bold: true, fontSize: 9, margin: [0, 8, 0, 4] });
+    content.push({
+      margin: [0, 0, 0, 8],
+      table: {
+        headerRows: 1,
+        widths: ['*', 70, 80],
+        body: [
+          [
+            { text: 'Название', bold: true, fontSize: 8, fillColor: '#f0f0f0' },
+            { text: 'Кол-во', bold: true, fontSize: 8, alignment: 'center', fillColor: '#f0f0f0' },
+            { text: 'Сумма, руб.', bold: true, fontSize: 8, alignment: 'right', fillColor: '#f0f0f0' },
+          ],
+          ...optRows.map((r) => [
+            { text: r[0], fontSize: 8 },
+            { text: r[1], fontSize: 8, alignment: 'center' },
+            { text: r[2], fontSize: 8, alignment: 'right' },
+          ]),
+        ],
+      },
+      layout: {
+        hLineWidth: () => 0.5,
+        vLineWidth: () => 0.5,
+        hLineColor: () => '#bbbbbb',
+        vLineColor: () => '#bbbbbb',
+        paddingTop: () => 3,
+        paddingBottom: () => 3,
+        paddingLeft: () => 4,
+        paddingRight: () => 4,
+      },
+    });
+  }
 
   // ===== РАБОТЫ =====
   const workRows = [];
