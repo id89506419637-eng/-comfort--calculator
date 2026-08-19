@@ -232,11 +232,11 @@ function buildKpDocDefinition(data, prices) {
         margin: [0, 10, 0, 0],
       }
     ],
-    margin: [0, 0, 0, 6],
+    margin: [0, 0, 0, 0],
   });
 
-  content.push({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1, lineColor: blue }], margin: [0, 0, 0, 10] });
-  content.push({ text: `Предварительный расчёт от ${today}`, fontSize: 14, bold: true, alignment: 'center', margin: [0, 0, 0, 10] });
+  content.push({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1, lineColor: blue }], margin: [0, 0, 0, 4] });
+  content.push({ text: `Предварительный расчёт от ${today}`, fontSize: 14, bold: true, alignment: 'center', margin: [0, 0, 0, 6] });
 
   // ===== КЛИЕНТ =====
   if (data.clientName || data.clientCompany) {
@@ -301,7 +301,7 @@ function buildKpDocDefinition(data, prices) {
   });
 
   // ===== СВОДНАЯ ТАБЛИЦА =====
-  content.push({ text: 'Сводная расчётная таблица', fontSize: 13, bold: true, alignment: 'center', margin: [0, 20, 0, 8] });
+  content.push({ text: 'Сводная расчётная таблица', fontSize: 13, bold: true, alignment: 'center', margin: [0, 4, 0, 6] });
 
   const summaryHeader = [
     { text: '№', bold: true, fontSize: 8, alignment: 'center', fillColor: '#f0f0f0' },
