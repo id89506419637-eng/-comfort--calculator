@@ -252,10 +252,23 @@ function buildKpDocDefinition(data, prices) {
     }
     if (item.needsRAL) desc.push('Покраска RAL');
     if (item.needsTinting) desc.push('Тонировка стёкол');
-    if (item.otliv) desc.push(`Отлив: ${Number(item.otlivQty) || 0} шт.`);
-    if (item.podokonnik) desc.push(`Подоконник: ${Number(item.podokonnikQty) || 0} шт.`);
-    if (item.mosquitoNet) desc.push(`Москитная сетка: ${Number(item.mosquitoNetQty) || 0} шт.`);
-    if (item.dovodchik) desc.push(`Доводчик: ${Number(item.dovodchikQty) || 0} шт.`);
+    const optWidthM = (item.width || 0) / 1000;
+    if (item.otliv) {
+      const c = (Number(item.otlivQty) || 0) * optWidthM * (prices.otliv_per_meter || 0);
+      desc.push(`Отлив: ${Number(item.otlivQty) || 0} шт. — ${Math.round(c).toLocaleString('ru-RU')} ₽`);
+    }
+    if (item.podokonnik) {
+      const c = (Number(item.podokonnikQty) || 0) * optWidthM * (prices.podokonnik_per_meter || 0);
+      desc.push(`Подоконник: ${Number(item.podokonnikQty) || 0} шт. — ${Math.round(c).toLocaleString('ru-RU')} ₽`);
+    }
+    if (item.mosquitoNet) {
+      const c = (Number(item.mosquitoNetQty) || 0) * (prices.mosquito_net_per_piece || 0);
+      desc.push(`Москитная сетка: ${Number(item.mosquitoNetQty) || 0} шт. — ${Math.round(c).toLocaleString('ru-RU')} ₽`);
+    }
+    if (item.dovodchik) {
+      const c = (Number(item.dovodchikQty) || 0) * (prices.dovodchik_per_piece || 0);
+      desc.push(`Доводчик: ${Number(item.dovodchikQty) || 0} шт. — ${Math.round(c).toLocaleString('ru-RU')} ₽`);
+    }
 
     content.push({
       unbreakable: true,
@@ -456,7 +469,7 @@ function buildKpDocDefinition(data, prices) {
       body: [[{
         stack: [
           { text: 'Стоимость является ориентировочной. Итоговая стоимость определяется после уточнения технических деталей и осмотра объекта.', fontSize: 8 },
-          { text: 'Стоимость подоконников, отливов, доводчиков и доп. фурнитуры рассчитывается при заявке на точный расчёт.', fontSize: 8, margin: [0, 2, 0, 0] },
+          { text: 'Стоимость доп. фурнитуры и комплектующих рассчитывается при заявке на точный расчёт.', fontSize: 8, margin: [0, 2, 0, 0] },
         ],
         color: '#555',
         margin: [4, 4, 4, 4],

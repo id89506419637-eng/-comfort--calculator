@@ -641,7 +641,7 @@ export default function App() {
           <div className="result-price">{min} – {max} &#8381;</div>
         </div>
 
-        <p className="note">* Стоимость подоконников, отливов, доводчиков и доп. фурнитуры рассчитывается при заявке на точный расчёт</p>
+        <p className="note">* Стоимость доп. фурнитуры и комплектующих рассчитывается при заявке на точный расчёт</p>
 
         <div className="consent-block">
           <label className="checkbox-label consent-label">
